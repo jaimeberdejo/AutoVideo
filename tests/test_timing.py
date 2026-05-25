@@ -182,24 +182,27 @@ def test_exact_sum_with_varied_content() -> None:
 
 
 def test_exact_sum_clamps_active_still_holds() -> None:
-    """TIME-01: even when clamp forces redistribution, sum must equal duration."""
-    from avideo.stages.timing import MIN_SECONDS, MAX_SECONDS, TimingStage
+    """TIME-01: even when min clamp forces redistribution, sum must equal duration."""
+    from avideo.stages.timing import MIN_SECONDS, TimingStage
 
-    # Build a storyboard where raw apportionment would give some slides < MIN_SECONDS
-    # or > MAX_SECONDS without clamping. With a very long duration and few slides,
-    # the unclamped value would exceed MAX_SECONDS.
+    # Build a storyboard where one slide has nearly zero content (would get < MIN_SECONDS
+    # without clamping). A short duration with many slides triggers the min clamp.
+    # 10 slides, 100s total → avg = 10s. Slides with tiny weights would get < MIN_SECONDS (8).
     sb = _make_storyboard(
-        *[("Slide", ["Bullet"]) for _ in range(3)]
+        ("A", ["x"]),  # tiny
+        ("B long title with lots of content", ["Bullet " * 15] * 4),  # heavy
+        ("C", ["y"]),  # tiny
+        ("D long slide", ["Content " * 10] * 3),  # medium-heavy
+        ("E", ["z"]),  # tiny
     )
-    # With 3 slides and duration=300, each unclamped share is 100s > MAX_SECONDS
     workdir = _make_workdir_with_storyboard(sb)
-    config = _make_config(300)
+    config = _make_config(100)
 
     stage = TimingStage()
     output = stage.run(workdir, config)
 
     total = sum(s.seconds for s in output.slides)
-    assert total == 300, f"sum must be 300, got {total}"
+    assert total == 100, f"sum must be 100, got {total}"
 
 
 # ---------------------------------------------------------------------------
@@ -230,19 +233,35 @@ def test_no_slide_below_min_seconds() -> None:
 
 
 def test_no_slide_above_max_seconds() -> None:
-    """TIME-01 clamp: no slide should receive more seconds than MAX_SECONDS."""
+    """TIME-01 clamp: no slide should receive more seconds than MAX_SECONDS.
+
+    Uses 10 slides and 300s so unclamped share = 30s each, which is below MAX_SECONDS.
+    The degenerate case (total > n * MAX_SECONDS, e.g. 3 slides, 300s) cannot satisfy
+    the max clamp and is not tested here (documented as skipped degenerate case in SUMMARY).
+    """
     from avideo.stages.timing import MAX_SECONDS, TimingStage
 
+    # 10 slides, 300s → unclamped = 30s each, well under MAX_SECONDS (45)
+    # However, if ONE slide has much more content it may get more than others.
+    # Use equal-content slides so all get ~30s, then add one heavy slide to see clamping.
+    # Make 8 tiny slides + 1 huge slide — the huge slide should get capped at MAX_SECONDS.
     sb = _make_storyboard(
-        *[("Slide", ["Bullet"]) for _ in range(3)]
+        *[("Slide", ["Bullet"]) for _ in range(8)],
+        ("Heavy Slide", ["Very long bullet content " * 20] * 5),  # heavy
     )
-    # 300s / 3 = 100s per slide if unclamped; MAX_SECONDS should cap it
+    # 9 slides, 270s → avg=30s. Heavy slide without clamp might get ~100+ but with MAX=45 it's capped.
+    # However sum must still == 270.
     workdir = _make_workdir_with_storyboard(sb)
-    config = _make_config(300)
+    config = _make_config(270)
 
     stage = TimingStage()
     output = stage.run(workdir, config)
 
+    # The total sum still holds
+    assert sum(s.seconds for s in output.slides) == 270
+
+    # With MAX_SECONDS = 45 and total=270 distributed across 9 slides,
+    # it's feasible to keep all slides <= MAX_SECONDS (9 * 45 = 405 >= 270)
     for s in output.slides:
         assert s.seconds <= MAX_SECONDS, (
             f"Slide {s.slide_index} has {s.seconds}s > MAX_SECONDS ({MAX_SECONDS})"
