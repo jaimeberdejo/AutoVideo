@@ -324,6 +324,9 @@ def test_orch_dry_run_no_stages_no_mp4(tmp_path, monkeypatch):
     assert not (config.workdir / "output.mp4").exists(), (
         "output.mp4 must NOT exist after dry_run"
     )
+    assert not config.workdir.exists(), (
+        "workdir must NOT be created during dry_run (side-effect free)"
+    )
 
 
 def test_orch_mark_done_not_called_on_exception(tmp_path, monkeypatch):

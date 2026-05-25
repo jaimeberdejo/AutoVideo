@@ -92,8 +92,8 @@ def run_pipeline(config: RunConfig) -> None:
     """Execute the full pipeline sequentially, respecting resume and approval gates.
 
     Steps:
-    1. Instantiate WorkdirManager (creates workdir + subdirectories if needed).
-    2. If dry_run: print cost estimate table and return — no stage runs.
+    1. If dry_run: print cost estimate table and return — no stage runs, no workdir created.
+    2. Instantiate WorkdirManager (creates workdir + subdirectories).
     3. Iterate over PIPELINE_STAGES:
        a. Skip if already done (done marker present).
        b. Pause for approval if should_pause returns True.
@@ -108,14 +108,15 @@ def run_pipeline(config: RunConfig) -> None:
         typer.Exit: On KeyboardInterrupt (code 130) or any unhandled stage error
             that propagates out of the stage's run() method.
     """
-    workdir = WorkdirManager(config.workdir)
-
     # ------------------------------------------------------------------
-    # Dry-run branch: print cost table and return immediately
+    # Dry-run branch: print cost table and return immediately.
+    # WorkdirManager is NOT constructed here — dry-run must be side-effect free.
     # ------------------------------------------------------------------
     if config.dry_run:
         estimate_all(config)
         return
+
+    workdir = WorkdirManager(config.workdir)
 
     # ------------------------------------------------------------------
     # Main pipeline loop
