@@ -44,7 +44,13 @@ class RunConfig(BaseSettings):
 
     # Voice settings
     voice: VoiceMode = VoiceMode.elevenlabs
+    # voice_id default is Rachel (21m00Tcm4TlvDq8ikWAM) — a placeholder; move to config.yaml
+    # for production use (supports eleven_multilingual_v2 for Spanish).
     voice_id: str = "21m00Tcm4TlvDq8ikWAM"
+    # whisperx_model: size for WhisperX forced-alignment (D-05).
+    # "small" balances CPU speed vs. precision; use "large-v3" for GPU runs.
+    # Configurable via AVIDEO_WHISPERX_MODEL env var or config.yaml whisperx_model key.
+    whisperx_model: str = "small"
 
     # Slide settings
     slides_mode: SlidesMode = SlidesMode.auto

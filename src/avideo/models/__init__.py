@@ -8,6 +8,7 @@ from .slides import SlidesOutput
 from .storyboard import SlideSpec, StoryboardOutput, VisualType
 from .theme import DEFAULT_THEME, ThemeConfig
 from .timing import SlideTiming, TimingOutput
+from .timings import SlideTimings, UnifiedTimings, WordTiming
 from .verification import SlideVerdict, VerificationReport
 from .voice import VoiceOutput
 
@@ -34,6 +35,10 @@ __all__ = [
     "VoiceOutput",
     "QAReport",
     "AssemblyOutput",
+    # Phase 4: unified timings (D-11)
+    "UnifiedTimings",
+    "SlideTimings",
+    "WordTiming",
     # Theme
     "ThemeConfig",
     "DEFAULT_THEME",
