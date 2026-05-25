@@ -15,8 +15,10 @@ Stages (StageProtocol) must never call input() or Confirm.ask() directly.
 Level semantics (locked in CONTEXT.md):
     L1 = pause after EVERY stage
     L2 = pause only on creative checkpoints: storyboard, scriptwriter, slides, verify
-    L3 = pause only when a stage produced a warning/fail (Phase 1 stubs never fail;
-         logic is present and correct for Phase 6)
+    L3 = pause after verify if it produced a warning/fail verdict.
+         Not yet wired in Phase 1: the verifier stub never fails and no verdict
+         is read post-run.  TODO(Phase 6): evaluate verdict after verify.run()
+         and call pause_for_approval when has_fail is True.
     L4 = never pause (fully autonomous)
 """
 from __future__ import annotations
@@ -51,23 +53,22 @@ FAIL_STAGES: frozenset[str] = frozenset({"verify"})
 # ---------------------------------------------------------------------------
 
 
-def should_pause(stage_name: str, level: int, has_fail: bool = False) -> bool:
+def should_pause(stage_name: str, level: int) -> bool:
     """Return True if the orchestrator should pause for approval before this stage.
 
-    Implements the level semantics exactly as locked in CONTEXT.md:
+    Implements L1/L2/L4 gate semantics as locked in CONTEXT.md.
 
     - L1: always pause.
     - L2: pause only for creative stages (storyboard, scriptwriter, slides, verify).
-    - L3: pause only when the stage produced a warning/fail verdict.
-          Phase-1 stubs never fail, so this effectively never triggers in Phase 1.
-          The logic is present for Phase 6.
+    - L3: L3 semantics ("pause after verify if it produced a warning/fail verdict")
+          require a post-run check.  That wiring is deferred to Phase 6 when the
+          verifier stage is implemented.  In Phase 1, level=3 behaves like level=4
+          (no pauses) because the stub verifier never fails.
     - L4: never pause.
 
     Args:
         stage_name: The ``stage_name`` attribute of the stage about to run.
         level: Automation level 1–4.
-        has_fail: True if the *previous* run of this stage produced a fail/warning
-            verdict (used by L3; always False for Phase-1 stubs).
 
     Returns:
         True if the pipeline should call ``pause_for_approval`` before proceeding.
@@ -78,8 +79,7 @@ def should_pause(stage_name: str, level: int, has_fail: bool = False) -> bool:
         return True
     if level == 2:
         return stage_name in CREATIVE_STAGES
-    if level == 3:
-        return stage_name in FAIL_STAGES and has_fail
+    # level == 3: post-run verdict check not yet implemented (Phase 6 TODO)
     return False
 
 
