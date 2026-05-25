@@ -19,7 +19,7 @@ created: 2026-05-26
 |----------|-------|
 | **Framework** | pytest 8.x |
 | **Config file** | pyproject.toml ([tool.pytest]) |
-| **Quick run command** | `uv run pytest tests/test_slides_hybrid.py tests/test_verify.py -q` |
+| **Quick run command** | `uv run pytest tests/test_slides_hybrid.py tests/test_slides_manual.py tests/test_verify_slides.py tests/test_image_utils.py -q` |
 | **Full suite command** | `uv run pytest -q` |
 | **Estimated runtime** | ~5 seconds |
 
@@ -47,7 +47,7 @@ created: 2026-05-26
 
 ## Wave 0 (test scaffold)
 
-- Create `tests/test_slides_hybrid.py` and `tests/test_verify.py` with fixtures: fake storyboard/script checkpoints, placeholder slide PNGs, canned vision `SlideVerdict` responses, mock `fitz` rasterizer.
+- Create `tests/test_slides_hybrid.py`, `tests/test_slides_manual.py`, `tests/test_verify_slides.py`, and `tests/test_image_utils.py` with fixtures: fake storyboard/script checkpoints, placeholder slide PNGs, canned vision `SlideVerdict` responses, mock `fitz` rasterizer.
 - These tests define the contracts above (RED) before implementation (GREEN).
 
 ---

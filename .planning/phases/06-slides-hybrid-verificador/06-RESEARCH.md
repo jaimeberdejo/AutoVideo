@@ -584,22 +584,22 @@ All critical technical claims (API image format, PyMuPDF zoom, Pillow downscale,
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should the hybrid pause be a `pause_for_approval` call or a checkpoint-based re-entry?**
    - What we know: `pause_for_approval` blocks on user input (Confirm.ask). The hybrid flow needs the user to place files in `slides_user/` THEN resume.
    - What's unclear: Should the pipeline terminate cleanly with a message ("Run again to continue after placing your slides") or block indefinitely?
-   - Recommendation: Use `pause_for_approval("slides-design")` with a descriptive message instructing the user to place slides and press Enter. This matches existing L1/L2 behavior and keeps the process alive.
+   - RESOLVED: Use `pause_for_approval("slides-design")` with a descriptive message instructing the user to place slides and press Enter. This matches existing L1/L2 behavior and keeps the process alive.
 
 2. **Does the verifier run slide-by-slide (one API call per slide) or in a single batch call?**
    - What we know: The CONTEXT.md says "per slide: the slide PNG + its SlideSpec + narration → SlideVerdict". This implies N separate calls.
    - What's unclear: Whether the planner should design for batch (multiple images per call) to reduce API latency.
-   - Recommendation: One call per slide — simpler error handling, easier idempotence (skip slides that already have verdicts), and more predictable token usage. The decision in CONTEXT.md supports this.
+   - RESOLVED: One call per slide — simpler error handling, easier idempotence (skip slides that already have verdicts), and more predictable token usage. The decision in CONTEXT.md supports this.
 
 3. **`verification_report.json` vs. `verification.json` — are these two separate files?**
    - What we know: The CONTEXT.md says "write `workdir/verification_report.json`". `workdir.write_checkpoint("verification", report)` writes `workdir/verification.json`. Both are VerificationReport.
    - What's unclear: Are they the same content written to two different paths, or different models?
-   - Recommendation: Write the VerificationReport to both paths: `write_checkpoint("verification", report)` for the orchestrator's idempotence logic, and also write `verification_report.json` atomically (tmp→rename) for human-readable access. Same content, two paths.
+   - RESOLVED: Write the VerificationReport to both paths: `write_checkpoint("verification", report)` for the orchestrator's idempotence logic, and also write `verification_report.json` atomically (tmp→rename) for human-readable access. Same content, two paths.
 
 ---
 
