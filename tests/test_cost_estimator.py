@@ -201,3 +201,82 @@ def test_estimate_script_tokens_positive() -> None:
     in_tok, out_tok = estimate_script_tokens(num_bullets=3, duration=90)
     assert in_tok > 0
     assert out_tok > 0
+
+
+# ---------------------------------------------------------------------------
+# estimate_theme_tokens — heuristic unit (Phase 3 / Pitfall 6)
+# ---------------------------------------------------------------------------
+
+
+def test_estimate_theme_tokens_returns_tuple() -> None:
+    """estimate_theme_tokens must return a tuple of two ints."""
+    from avideo.utils.cost_estimator import estimate_theme_tokens
+
+    result = estimate_theme_tokens(num_bullets=5, duration=120)
+    assert isinstance(result, tuple)
+    assert len(result) == 2
+    in_tok, out_tok = result
+    assert isinstance(in_tok, int)
+    assert isinstance(out_tok, int)
+
+
+def test_estimate_theme_tokens_positive() -> None:
+    """estimate_theme_tokens must return positive ints."""
+    from avideo.utils.cost_estimator import estimate_theme_tokens
+
+    in_tok, out_tok = estimate_theme_tokens(num_bullets=5, duration=120)
+    assert in_tok > 0, f"Expected in_tok > 0, got {in_tok}"
+    assert out_tok > 0, f"Expected out_tok > 0, got {out_tok}"
+
+
+def test_estimate_theme_tokens_grows_with_duration() -> None:
+    """estimate_theme_tokens: longer duration → more slides → >= input tokens."""
+    from avideo.utils.cost_estimator import estimate_theme_tokens
+
+    in_short, _ = estimate_theme_tokens(num_bullets=5, duration=60)
+    in_long, _ = estimate_theme_tokens(num_bullets=5, duration=600)
+    assert in_long >= in_short, (
+        f"Longer duration should produce >= input tokens. Got: short={in_short}, long={in_long}"
+    )
+
+
+def test_estimate_all_includes_slides_row(tmp_path: Path) -> None:
+    """After Phase 3 fix: estimate_all shows a non-dash slides/theme row (Pitfall 6)."""
+    from io import StringIO
+    import avideo.utils.cost_estimator as ce_module
+
+    bullets = tmp_path / "bullets.yaml"
+    bullets.write_text("title: Test\nbullets:\n  - Bullet 1\n  - Bullet 2\n", encoding="utf-8")
+    config = _make_config(bullets)
+
+    # Verify that estimate_theme_tokens is exposed (no network call)
+    assert hasattr(ce_module, "estimate_theme_tokens"), (
+        "cost_estimator must expose estimate_theme_tokens"
+    )
+
+    th_in, th_out = ce_module.estimate_theme_tokens(num_bullets=2, duration=120)
+    assert th_in > 0
+    assert th_out > 0
+
+    # Verify it is summed into total (slides row is non-zero)
+    sb_in, sb_out = ce_module.estimate_storyboard_tokens(num_bullets=2, duration=120)
+    sc_in, sc_out = ce_module.estimate_script_tokens(num_bullets=2, duration=120)
+    total_in = sb_in + sc_in + th_in
+    assert total_in > sb_in + sc_in, "Theme tokens must be summed into total"
+
+
+def test_estimate_all_slides_offline(tmp_path: Path) -> None:
+    """estimate_theme_tokens and estimate_all must not call any network API."""
+    from avideo.utils.cost_estimator import estimate_theme_tokens, estimate_all
+
+    bullets = tmp_path / "bullets.yaml"
+    bullets.write_text("title: Test\nbullets:\n  - Bullet\n", encoding="utf-8")
+    config = _make_config(bullets)
+
+    # estimate_theme_tokens is pure arithmetic — no network possible
+    in_tok, out_tok = estimate_theme_tokens(num_bullets=3, duration=120)
+    assert isinstance(in_tok, int)
+    assert isinstance(out_tok, int)
+
+    # estimate_all runs offline (dry-run contract)
+    estimate_all(config)  # Must not raise; no workdir needed

@@ -91,6 +91,32 @@ def estimate_storyboard_tokens(num_bullets: int, duration: int) -> tuple[int, in
     return int(in_tok), int(out_tok)
 
 
+def estimate_theme_tokens(num_bullets: int, duration: int) -> tuple[int, int]:
+    """Estimate input and output tokens for the theme-generation LLM call.
+
+    The theme prompt summarises the storyboard slide titles (one line per slide).
+    Heuristic:
+        est_slides = clamp(round(duration / 25), 3, 20)
+        in_tok ≈ 300 + est_slides * 40  (system prompt + slide summary)
+        out_tok ≈ 250                    (compact ThemeConfig JSON)
+
+    T-03-06: Pure arithmetic — no network, no API key, preserves the offline
+    dry-run contract (mirrors estimate_storyboard_tokens and estimate_script_tokens).
+
+    Args:
+        num_bullets: Number of bullet points (used only for consistency with other
+            estimators; theme prompt does not include bullets).
+        duration: Target video duration in seconds.
+
+    Returns:
+        (in_tok, out_tok) — estimated integer token counts.
+    """
+    slides = _est_slides(duration)
+    in_tok = 300 + slides * 40
+    out_tok = 250  # compact ThemeConfig JSON is ~200-300 tokens
+    return int(in_tok), int(out_tok)
+
+
 def estimate_script_tokens(num_bullets: int, duration: int) -> tuple[int, int]:
     """Estimate input and output tokens for the scriptwriter LLM call.
 
@@ -164,13 +190,15 @@ def estimate_all(config: "RunConfig") -> None:
     # Compute per-stage estimates
     sb_in, sb_out = estimate_storyboard_tokens(num_bullets, duration)
     sc_in, sc_out = estimate_script_tokens(num_bullets, duration)
+    th_in, th_out = estimate_theme_tokens(num_bullets, duration)
 
     sb_usd = _tok_to_usd(sb_in, sb_out)
     sc_usd = _tok_to_usd(sc_in, sc_out)
+    th_usd = _tok_to_usd(th_in, th_out)
 
-    total_in = sb_in + sc_in
-    total_out = sb_out + sc_out
-    total_usd = sb_usd + sc_usd
+    total_in = sb_in + sc_in + th_in
+    total_out = sb_out + sc_out + th_out
+    total_usd = sb_usd + sc_usd + th_usd
 
     # Build Rich table
     table = Table(
@@ -187,12 +215,13 @@ def estimate_all(config: "RunConfig") -> None:
     )
 
     # Rows: only LLM stages have non-zero costs
+    # slides: theme generation call (one-time, idempotent after theme.yaml is written)
     _llm_stages = [
         ("context",    None, None),
         ("storyboard", sb_in, sb_out),
         ("timing",     None, None),
         ("scriptwriter", sc_in, sc_out),
-        ("slides",     None, None),
+        ("slides",     th_in, th_out),  # Phase 3: theme-generation LLM call (idempotent)
         ("verify",     None, None),   # Phase 6 — placeholder
         ("voice",      None, None),   # Phase 4 — ElevenLabs (not LLM)
         ("align",      None, None),

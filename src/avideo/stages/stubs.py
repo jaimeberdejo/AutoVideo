@@ -46,6 +46,9 @@ from avideo.stages.scriptwriter import ScriptwriterStage
 from avideo.stages.storyboard import StoryboardStage
 from avideo.stages.timing import TimingStage
 
+# Real Phase-3 stage implementation (replacing SlidesStub in PIPELINE_STAGES)
+from avideo.stages.slides_auto import SlidesAutoStage
+
 if TYPE_CHECKING:
     from avideo.models import RunConfig
     from avideo.utils.workdir import WorkdirManager
@@ -277,7 +280,7 @@ PIPELINE_STAGES: list = [
     StoryboardStage(),    # Phase 2: real LLM storyboard (was StoryboardStub)
     TimingStage(),        # Phase 2: real timing apportionment (was TimingStub)
     ScriptwriterStage(),  # Phase 2: real LLM scriptwriter (was ScriptwriterStub)
-    SlidesStub(),         # Phase 3: placeholder
+    SlidesAutoStage(),    # Phase 3: real (was SlidesStub) — stage_name='slides'
     VerifyStub(),         # Phase 6: placeholder
     VoiceStub(),          # Phase 4: placeholder
     AlignStub(),          # Phase 4: placeholder

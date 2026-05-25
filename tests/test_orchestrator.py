@@ -106,10 +106,29 @@ def test_stub_run_returns_pydantic_basemodel(tmp_path):
     workdir.write_checkpoint("storyboard", storyboard_out)
     workdir.write_checkpoint("timings", timings_out)
 
-    # Mock call_structured at the stage module scope for storyboard + scriptwriter
+    from avideo.models.theme import DEFAULT_THEME, ThemeConfig
+
+    def _cs_side_effect(**kwargs):
+        """Route call_structured by output_model for all three LLM stages."""
+        from avideo.models.script import ScriptOutput
+        output_model = kwargs.get("output_model")
+        if output_model is StoryboardOutput:
+            return storyboard_out
+        if output_model is ScriptOutput:
+            return script_out
+        if output_model is ThemeConfig:
+            return DEFAULT_THEME
+        raise RuntimeError(f"Unexpected output_model: {output_model}")
+
+    mock_cs = MagicMock(side_effect=_cs_side_effect)
+    mock_renderer_cls, _ = _mock_renderer_cls()
+
+    # Mock call_structured for storyboard, scriptwriter, slides_auto; mock SlideRenderer
     with (
-        patch("avideo.stages.storyboard.call_structured", return_value=storyboard_out),
-        patch("avideo.stages.scriptwriter.call_structured", return_value=script_out),
+        patch("avideo.stages.storyboard.call_structured", mock_cs),
+        patch("avideo.stages.scriptwriter.call_structured", mock_cs),
+        patch("avideo.stages.slides_auto.call_structured", mock_cs),
+        patch("avideo.stages.slides_auto.SlideRenderer", mock_renderer_cls),
     ):
         for stage in PIPELINE_STAGES:
             result = stage.run(workdir, config)
@@ -224,14 +243,25 @@ def _make_config(tmp_path: Path, **kwargs: Any):
     return RunConfig(**defaults)
 
 
+def _mock_renderer_cls():
+    """Return (mock_class, mock_instance) for SlideRenderer — no Chromium launched."""
+    mock_instance = MagicMock()
+    mock_instance.__enter__ = MagicMock(return_value=mock_instance)
+    mock_instance.__exit__ = MagicMock(return_value=False)
+    mock_instance.render_to_png = MagicMock()
+    mock_class = MagicMock(return_value=mock_instance)
+    return mock_class, mock_instance
+
+
 def _mock_call_structured_for_pipeline(tmp_path: Path):
     """Return a call_structured mock that produces valid stage outputs.
 
     The mock inspects output_model to return the appropriate Pydantic object
-    for StoryboardStage and ScriptwriterStage.
+    for StoryboardStage, ScriptwriterStage, and SlidesAutoStage (theme).
     """
     from avideo.models.script import ScriptOutput, SlideScript
     from avideo.models.storyboard import SlideSpec, StoryboardOutput, VisualType
+    from avideo.models.theme import DEFAULT_THEME, ThemeConfig
 
     storyboard_out = StoryboardOutput(
         slides=[
@@ -254,6 +284,8 @@ def _mock_call_structured_for_pipeline(tmp_path: Path):
             return storyboard_out
         if output_model is ScriptOutput:
             return script_out
+        if output_model is ThemeConfig:
+            return DEFAULT_THEME
         raise RuntimeError(f"Unexpected output_model: {output_model}")
 
     return MagicMock(side_effect=_side_effect)
@@ -266,10 +298,13 @@ def test_orch_full_run_all_stages_done(tmp_path):
 
     config = _make_config(tmp_path, level=4)
     mock_cs = _mock_call_structured_for_pipeline(tmp_path)
+    mock_renderer_cls, _ = _mock_renderer_cls()
 
     with (
         patch("avideo.stages.storyboard.call_structured", mock_cs),
         patch("avideo.stages.scriptwriter.call_structured", mock_cs),
+        patch("avideo.stages.slides_auto.call_structured", mock_cs),
+        patch("avideo.stages.slides_auto.SlideRenderer", mock_renderer_cls),
     ):
         run_pipeline(config)
 
@@ -291,10 +326,13 @@ def test_orch_idempotent_second_run(tmp_path, monkeypatch):
     # Full first run
     config = _make_config(tmp_path, level=4)
     mock_cs = _mock_call_structured_for_pipeline(tmp_path)
+    mock_renderer_cls, _ = _mock_renderer_cls()
 
     with (
         patch("avideo.stages.storyboard.call_structured", mock_cs),
         patch("avideo.stages.scriptwriter.call_structured", mock_cs),
+        patch("avideo.stages.slides_auto.call_structured", mock_cs),
+        patch("avideo.stages.slides_auto.SlideRenderer", mock_renderer_cls),
     ):
         run_pipeline(config)
 
@@ -359,9 +397,12 @@ def test_orch_resume_after_partial(tmp_path, monkeypatch):
         run_calls[stage.stage_name] = mock
 
     mock_cs = _mock_call_structured_for_pipeline(tmp_path)
+    mock_renderer_cls, _ = _mock_renderer_cls()
     with (
         patch("avideo.stages.storyboard.call_structured", mock_cs),
         patch("avideo.stages.scriptwriter.call_structured", mock_cs),
+        patch("avideo.stages.slides_auto.call_structured", mock_cs),
+        patch("avideo.stages.slides_auto.SlideRenderer", mock_renderer_cls),
     ):
         run_pipeline(config)
 
@@ -389,10 +430,13 @@ def test_orch_level4_no_pause(tmp_path, monkeypatch):
 
     config = _make_config(tmp_path, level=4)
     mock_cs = _mock_call_structured_for_pipeline(tmp_path)
+    mock_renderer_cls, _ = _mock_renderer_cls()
 
     with (
         patch("avideo.stages.storyboard.call_structured", mock_cs),
         patch("avideo.stages.scriptwriter.call_structured", mock_cs),
+        patch("avideo.stages.slides_auto.call_structured", mock_cs),
+        patch("avideo.stages.slides_auto.SlideRenderer", mock_renderer_cls),
     ):
         run_pipeline(config)
 
@@ -410,10 +454,13 @@ def test_orch_level1_pauses_each_stage(tmp_path, monkeypatch):
 
     config = _make_config(tmp_path, level=1)
     mock_cs = _mock_call_structured_for_pipeline(tmp_path)
+    mock_renderer_cls, _ = _mock_renderer_cls()
 
     with (
         patch("avideo.stages.storyboard.call_structured", mock_cs),
         patch("avideo.stages.scriptwriter.call_structured", mock_cs),
+        patch("avideo.stages.slides_auto.call_structured", mock_cs),
+        patch("avideo.stages.slides_auto.SlideRenderer", mock_renderer_cls),
     ):
         run_pipeline(config)
 
@@ -433,10 +480,13 @@ def test_orch_level2_pauses_creative_stages(tmp_path, monkeypatch):
 
     config = _make_config(tmp_path, level=2)
     mock_cs = _mock_call_structured_for_pipeline(tmp_path)
+    mock_renderer_cls, _ = _mock_renderer_cls()
 
     with (
         patch("avideo.stages.storyboard.call_structured", mock_cs),
         patch("avideo.stages.scriptwriter.call_structured", mock_cs),
+        patch("avideo.stages.slides_auto.call_structured", mock_cs),
+        patch("avideo.stages.slides_auto.SlideRenderer", mock_renderer_cls),
     ):
         run_pipeline(config)
 
