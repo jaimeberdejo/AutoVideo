@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Foundation** - Orquestador secuencial + CLI typer + modelos Pydantic + WorkdirManager + niveles L1-L4 (pipeline end-to-end con stubs) (completed 2026-05-25)
 - [x] **Phase 2: LLM Pipeline** - Ingesta de contexto + Storyboard (Claude) + Director de timing + Guionista (Claude) (completed 2026-05-25)
 - [x] **Phase 3: Slides Auto** - Jinja2 + Playwright → PNG 1920×1080 + theme.yaml + iconos SVG offline (modo `auto`) (completed 2026-05-25)
-- [ ] **Phase 4: Voz + Subtítulos** - ElevenLabs TTS con timestamps + modo record + WhisperX (alineación) + SRT/VTT
+- [x] **Phase 4: Voz + Subtítulos** - ElevenLabs TTS con timestamps + modo record + WhisperX (alineación) + SRT/VTT (completed 2026-05-25)
 - [ ] **Phase 5: Montaje + QA** - FFmpeg concat + crossfade + loudnorm + quemado de subtítulos + informe QA
 - [ ] **Phase 6: Slides Hybrid/Manual + Verificador** - Propuesta de diseño + ingesta de slides del usuario + verificador Claude Vision
 - [ ] **Phase 7: Empaquetado + Tests + Docs** - pyproject.toml/uv + Dockerfile + pytest mínimos + README
@@ -81,9 +81,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — [Wave 1] models/timings.py (UnifiedTimings) + integrations/elevenlabs.py (convert_with_timestamps seconds + validación estrictamente-creciente + retry≤3) + stages/voice_elevenlabs.py + VoiceStage despachador + RunConfig (whisperx_model) + deps elevenlabs/extra record + scaffolding tests Wave 0
-- [ ] 04-02-PLAN.md — [Wave 2] integrations/whisperx.py (align_wav import perezoso, CPU int8) + stages/voice_record.py (export guion segmentado + autodetect/grabar slide_XX.wav) + stages/align.py (record→whisperx por palabra; elevenlabs→no-op idempotente)
-- [ ] 04-03-PLAN.md — [Wave 3] utils/subtitle_format.py (segmentación de cues + SRT/VTT puro) + stages/subtitles.py (UnifiedTimings → output.srt/.vtt con offset global; no quema con --burn-subs) + swap voice/align/subs en PIPELINE_STAGES
+- [x] 04-01-PLAN.md — [Wave 1] models/timings.py (UnifiedTimings) + integrations/elevenlabs.py (convert_with_timestamps seconds + validación estrictamente-creciente + retry≤3) + stages/voice_elevenlabs.py + VoiceStage despachador + RunConfig (whisperx_model) + deps elevenlabs/extra record + scaffolding tests Wave 0
+- [x] 04-02-PLAN.md — [Wave 2] integrations/whisperx.py (align_wav import perezoso, CPU int8) + stages/voice_record.py (export guion segmentado + autodetect/grabar slide_XX.wav) + stages/align.py (record→whisperx por palabra; elevenlabs→no-op idempotente)
+- [x] 04-03-PLAN.md — [Wave 3] utils/subtitle_format.py (segmentación de cues + SRT/VTT puro) + stages/subtitles.py (UnifiedTimings → output.srt/.vtt con offset global; no quema con --burn-subs) + swap voice/align/subs en PIPELINE_STAGES
 
 ### Phase 5: Montaje + QA
 **Goal**: El pipeline monta el vídeo final 1080p 16:9 sincronizando slides + audios con FFmpeg (duraciones reales medidas por ffprobe), aplica crossfade configurable y loudnorm, y emite un informe QA con desviación de duración y nivel LUFS
@@ -141,7 +141,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 1. Foundation | 3/3 | Complete    | 2026-05-25 |
 | 2. LLM Pipeline | 3/3 | Complete    | 2026-05-25 |
 | 3. Slides Auto | 2/2 | Complete    | 2026-05-25 |
-| 4. Voz + Subtítulos | 0/3 | Not started | - |
+| 4. Voz + Subtítulos | 3/3 | Complete    | 2026-05-25 |
 | 5. Montaje + QA | 0/2 | Not started | - |
 | 6. Slides Hybrid/Manual + Verificador | 0/2 | Not started | - |
 | 7. Empaquetado + Tests + Docs | 0/3 | Not started | - |

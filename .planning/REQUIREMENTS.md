@@ -62,19 +62,19 @@ Requisitos del release inicial. Cada uno se mapea a fases del roadmap.
 
 ### VOICE — Voz
 
-- [ ] **VOICE-01**: En modo `elevenlabs`, genera un clip de audio por slide con el endpoint con timestamps (modelo `eleven_multilingual_v2`, `voice_id` configurable)
-- [ ] **VOICE-02**: Valida que los timestamps devueltos sean estrictamente crecientes (mitiga el bug de timestamps "congelados"); reintenta o marca fallback si no
-- [ ] **VOICE-03**: En modo `record`, exporta el guion segmentado y permite grabar con `sounddevice` o aportar `slide_XX.wav`
+- [x] **VOICE-01**: En modo `elevenlabs`, genera un clip de audio por slide con el endpoint con timestamps (modelo `eleven_multilingual_v2`, `voice_id` configurable)
+- [x] **VOICE-02**: Valida que los timestamps devueltos sean estrictamente crecientes (mitiga el bug de timestamps "congelados"); reintenta o marca fallback si no
+- [x] **VOICE-03**: En modo `record`, exporta el guion segmentado y permite grabar con `sounddevice` o aportar `slide_XX.wav`
 
 ### ALIGN — Alineación
 
-- [ ] **ALIGN-01**: En modo `record`, WhisperX alinea el audio y produce timings por palabra
-- [ ] **ALIGN-02**: En modo `elevenlabs`, no se ejecuta alineación (los timings ya vienen del API)
+- [x] **ALIGN-01**: En modo `record`, WhisperX alinea el audio y produce timings por palabra
+- [x] **ALIGN-02**: En modo `elevenlabs`, no se ejecuta alineación (los timings ya vienen del API)
 
 ### SUB — Subtítulos
 
-- [ ] **SUB-01**: Genera subtítulos `.srt` y `.vtt` a partir de los timings (siempre)
-- [ ] **SUB-02**: El quemado de subtítulos en el vídeo es opcional mediante flag
+- [x] **SUB-01**: Genera subtítulos `.srt` y `.vtt` a partir de los timings (siempre)
+- [x] **SUB-02**: El quemado de subtítulos en el vídeo es opcional mediante flag
 
 ### ASMB — Montaje
 
@@ -156,13 +156,13 @@ Qué fases cubren qué requisitos.
 | SLIDE-01 | Phase 3 | Complete |
 | SLIDE-02 | Phase 3 | Complete |
 | SLIDE-03 | Phase 3 | Complete |
-| VOICE-01 | Phase 4 | Pending |
-| VOICE-02 | Phase 4 | Pending |
-| VOICE-03 | Phase 4 | Pending |
-| ALIGN-01 | Phase 4 | Pending |
-| ALIGN-02 | Phase 4 | Pending |
-| SUB-01 | Phase 4 | Pending |
-| SUB-02 | Phase 4 | Pending |
+| VOICE-01 | Phase 4 | Complete |
+| VOICE-02 | Phase 4 | Complete |
+| VOICE-03 | Phase 4 | Complete |
+| ALIGN-01 | Phase 4 | Complete |
+| ALIGN-02 | Phase 4 | Complete |
+| SUB-01 | Phase 4 | Complete |
+| SUB-02 | Phase 4 | Complete |
 | ASMB-01 | Phase 5 | Pending |
 | ASMB-02 | Phase 5 | Pending |
 | ASMB-03 | Phase 5 | Pending |
