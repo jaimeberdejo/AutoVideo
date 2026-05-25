@@ -60,6 +60,17 @@ class RunConfig(BaseSettings):
     wpm: int = Field(default=150, gt=0, description="Words per minute for timing")
     language: str = "es"
 
+    # Assembly / QA settings (Phase 5)
+    crossfade_seconds: float = Field(
+        default=0.5,
+        ge=0,
+        description="Crossfade duration between slides in seconds; 0 = hard cuts (D-03)",
+    )
+    target_lufs: float = Field(
+        default=-16.0,
+        description="EBU R128 loudness target for two-pass loudnorm in LUFS (D-06)",
+    )
+
     # Flags
     dry_run: bool = False
     burn_subs: bool = False
