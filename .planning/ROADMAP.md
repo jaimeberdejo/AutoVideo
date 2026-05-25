@@ -13,7 +13,7 @@ Pipeline CLI en Python que transforma bullets + duración en un vídeo narrado (
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation** - Orquestador secuencial + CLI typer + modelos Pydantic + WorkdirManager + niveles L1-L4 (pipeline end-to-end con stubs) (completed 2026-05-25)
-- [ ] **Phase 2: LLM Pipeline** - Ingesta de contexto + Storyboard (Claude) + Director de timing + Guionista (Claude)
+- [x] **Phase 2: LLM Pipeline** - Ingesta de contexto + Storyboard (Claude) + Director de timing + Guionista (Claude) (completed 2026-05-25)
 - [ ] **Phase 3: Slides Auto** - Jinja2 + Playwright → PNG 1920×1080 + theme.yaml + iconos SVG offline (modo `auto`)
 - [ ] **Phase 4: Voz + Subtítulos** - ElevenLabs TTS con timestamps + modo record + WhisperX (alineación) + SRT/VTT
 - [ ] **Phase 5: Montaje + QA** - FFmpeg concat + crossfade + loudnorm + quemado de subtítulos + informe QA
@@ -51,9 +51,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — [Wave 1] Ingestor de contexto (PyMuPDF/python-pptx/markdown → ContextOutput) + loader compartido bullets.yaml (BulletsInput + load_bullets, cierra el gap de bullets nunca parseados) + deps anthropic/PyMuPDF/python-pptx
-- [ ] 02-02-PLAN.md — [Wave 2] integrations/anthropic.py (cliente lazy max_retries=3 + helper call_structured tool-use→Pydantic) + VisualType enum + stages/storyboard.py → StoryboardOutput
-- [ ] 02-03-PLAN.md — [Wave 3] stages/timing.py (largest-remainder, suma exacta + clamps) + stages/scriptwriter.py (whole-script + 1 reintento de calibración) + cost_estimator offline real + swap final de stubs en PIPELINE_STAGES
+- [x] 02-01-PLAN.md — [Wave 1] Ingestor de contexto (PyMuPDF/python-pptx/markdown → ContextOutput) + loader compartido bullets.yaml (BulletsInput + load_bullets, cierra el gap de bullets nunca parseados) + deps anthropic/PyMuPDF/python-pptx
+- [x] 02-02-PLAN.md — [Wave 2] integrations/anthropic.py (cliente lazy max_retries=3 + helper call_structured tool-use→Pydantic) + VisualType enum + stages/storyboard.py → StoryboardOutput
+- [x] 02-03-PLAN.md — [Wave 3] stages/timing.py (largest-remainder, suma exacta + clamps) + stages/scriptwriter.py (whole-script + 1 reintento de calibración) + cost_estimator offline real + swap final de stubs en PIPELINE_STAGES
 
 ### Phase 3: Slides Auto
 **Goal**: En modo `auto`, cada slide del storyboard se renderiza a PNG 1920×1080 píxeles con calidad pixel-perfect usando HTML/CSS + Playwright — con tema parametrizable en `theme.yaml` e iconos SVG Lucide servidos offline
@@ -139,7 +139,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete    | 2026-05-25 |
-| 2. LLM Pipeline | 0/3 | Not started | - |
+| 2. LLM Pipeline | 3/3 | Complete   | 2026-05-25 |
 | 3. Slides Auto | 0/2 | Not started | - |
 | 4. Voz + Subtítulos | 0/3 | Not started | - |
 | 5. Montaje + QA | 0/2 | Not started | - |
