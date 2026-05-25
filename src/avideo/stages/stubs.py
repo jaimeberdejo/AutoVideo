@@ -11,6 +11,11 @@ Pipeline order (canonical):
     voice → align → subs → assemble
 
 PIPELINE_STAGES: canonical ordered list consumed by the orchestrator.
+
+Phase 2 stub swap (plan 02-03):
+    ContextStub, StoryboardStub, TimingStub, ScriptwriterStub have been
+    replaced in PIPELINE_STAGES by their real implementations.  The stub
+    classes are retained for tests that import them directly.
 """
 from __future__ import annotations
 
@@ -34,6 +39,12 @@ from avideo.models import (
     VoiceOutput,
 )
 from avideo.stages.base import CheckpointMixin
+
+# Real Phase-2 stage implementations (replacing the first four stubs in PIPELINE_STAGES)
+from avideo.stages.context import ContextStage
+from avideo.stages.scriptwriter import ScriptwriterStage
+from avideo.stages.storyboard import StoryboardStage
+from avideo.stages.timing import TimingStage
 
 if TYPE_CHECKING:
     from avideo.models import RunConfig
@@ -262,14 +273,14 @@ class AssembleStub(CheckpointMixin):
 # ---------------------------------------------------------------------------
 
 PIPELINE_STAGES: list = [
-    ContextStub(),
-    StoryboardStub(),
-    TimingStub(),
-    ScriptwriterStub(),
-    SlidesStub(),
-    VerifyStub(),
-    VoiceStub(),
-    AlignStub(),
-    SubsStub(),
-    AssembleStub(),
+    ContextStage(),       # Phase 2: real context ingestion (was ContextStub)
+    StoryboardStage(),    # Phase 2: real LLM storyboard (was StoryboardStub)
+    TimingStage(),        # Phase 2: real timing apportionment (was TimingStub)
+    ScriptwriterStage(),  # Phase 2: real LLM scriptwriter (was ScriptwriterStub)
+    SlidesStub(),         # Phase 3: placeholder
+    VerifyStub(),         # Phase 6: placeholder
+    VoiceStub(),          # Phase 4: placeholder
+    AlignStub(),          # Phase 4: placeholder
+    SubsStub(),           # Phase 4: placeholder
+    AssembleStub(),       # Phase 5: placeholder
 ]

@@ -62,23 +62,60 @@ def test_stage_protocol_isinstance():
 
 
 def test_stub_run_returns_pydantic_basemodel(tmp_path):
-    """ORCH-05: each stub.run returns a Pydantic BaseModel instance."""
+    """ORCH-05: each stage.run returns a Pydantic BaseModel instance.
+
+    Real LLM stages (storyboard, scriptwriter) are mocked so no API calls are made.
+    Checkpoints for dependent stages (timing, scriptwriter) are pre-created to
+    simulate a partially-run pipeline.
+    """
     from pydantic import BaseModel
 
     from avideo.models import RunConfig
+    from avideo.models.storyboard import SlideSpec, StoryboardOutput, VisualType
+    from avideo.models.timing import SlideTiming, TimingOutput
     from avideo.stages.stubs import PIPELINE_STAGES
     from avideo.utils.workdir import WorkdirManager
 
+    # Create a real bullets.yaml so StoryboardStage can load it
+    bullets_file = tmp_path / "bullets.yaml"
+    bullets_file.write_text(
+        "title: Test\nbullets:\n  - Bullet 1\n  - Bullet 2\n",
+        encoding="utf-8",
+    )
     config = RunConfig(
-        bullets=Path("bullets.yaml"),
+        bullets=bullets_file,
         duration=120,
     )
     workdir = WorkdirManager(tmp_path)
-    for stage in PIPELINE_STAGES:
-        result = stage.run(workdir, config)
-        assert isinstance(result, BaseModel), (
-            f"{stage.stage_name}.run() returned {type(result)}, expected BaseModel"
-        )
+
+    # Pre-write storyboard + timings checkpoints so timing/scriptwriter stages can read them
+    storyboard_out = StoryboardOutput(
+        slides=[SlideSpec(title="Slide 1", bullets=["B1", "B2"], visual_type=VisualType.bullets)],
+        language="es",
+    )
+    timings_out = TimingOutput(
+        slides=[SlideTiming(slide_index=0, seconds=120.0, word_budget=300)],
+        total_seconds=120.0,
+        wpm=150,
+    )
+    from avideo.models.script import ScriptOutput, SlideScript
+    script_out = ScriptOutput(
+        slides=[SlideScript(slide_index=0, narration=" ".join(["palabra"] * 290))],
+        language="es",
+    )
+    workdir.write_checkpoint("storyboard", storyboard_out)
+    workdir.write_checkpoint("timings", timings_out)
+
+    # Mock call_structured at the stage module scope for storyboard + scriptwriter
+    with (
+        patch("avideo.stages.storyboard.call_structured", return_value=storyboard_out),
+        patch("avideo.stages.scriptwriter.call_structured", return_value=script_out),
+    ):
+        for stage in PIPELINE_STAGES:
+            result = stage.run(workdir, config)
+            assert isinstance(result, BaseModel), (
+                f"{stage.stage_name}.run() returned {type(result)}, expected BaseModel"
+            )
 
 
 def test_storyboard_stub_returns_at_least_one_slide(tmp_path):
@@ -151,17 +188,34 @@ def test_checkpoint_name_distinct_from_stage_name():
     assert AssembleStub().checkpoint_name == "assembly"
 
 
+def test_real_stages_have_correct_checkpoint_names():
+    """Real stages must keep the same checkpoint_name as their stubs."""
+    from avideo.stages.timing import TimingStage
+    from avideo.stages.scriptwriter import ScriptwriterStage
+
+    assert TimingStage().checkpoint_name == "timings"
+    assert ScriptwriterStage().checkpoint_name == "script"
+
+
 # ---------------------------------------------------------------------------
 # Task 2 — Orchestrator loop tests
 # ---------------------------------------------------------------------------
 
 
 def _make_config(tmp_path: Path, **kwargs: Any):
-    """Helper: build a RunConfig pointing at tmp_path/workdir."""
+    """Helper: build a RunConfig pointing at tmp_path/workdir with a real bullets.yaml."""
     from avideo.models import RunConfig
 
+    # Create a real bullets.yaml so StoryboardStage can load it
+    bullets_file = tmp_path / "bullets.yaml"
+    if not bullets_file.exists():
+        bullets_file.write_text(
+            "title: Test\nbullets:\n  - Bullet 1\n  - Bullet 2\n",
+            encoding="utf-8",
+        )
+
     defaults = dict(
-        bullets=Path("bullets.yaml"),
+        bullets=bullets_file,
         duration=120,
         workdir=tmp_path / "workdir",
         level=4,
@@ -170,13 +224,54 @@ def _make_config(tmp_path: Path, **kwargs: Any):
     return RunConfig(**defaults)
 
 
+def _mock_call_structured_for_pipeline(tmp_path: Path):
+    """Return a call_structured mock that produces valid stage outputs.
+
+    The mock inspects output_model to return the appropriate Pydantic object
+    for StoryboardStage and ScriptwriterStage.
+    """
+    from avideo.models.script import ScriptOutput, SlideScript
+    from avideo.models.storyboard import SlideSpec, StoryboardOutput, VisualType
+
+    storyboard_out = StoryboardOutput(
+        slides=[
+            SlideSpec(title="Slide 1", bullets=["Bullet 1", "Bullet 2"], visual_type=VisualType.bullets),
+            SlideSpec(title="Slide 2", bullets=["Bullet 3"], visual_type=VisualType.bullets),
+        ],
+        language="es",
+    )
+    script_out = ScriptOutput(
+        slides=[
+            SlideScript(slide_index=0, narration=" ".join(["palabra"] * 50)),
+            SlideScript(slide_index=1, narration=" ".join(["palabra"] * 30)),
+        ],
+        language="es",
+    )
+
+    def _side_effect(**kwargs):
+        output_model = kwargs.get("output_model")
+        if output_model is StoryboardOutput:
+            return storyboard_out
+        if output_model is ScriptOutput:
+            return script_out
+        raise RuntimeError(f"Unexpected output_model: {output_model}")
+
+    return MagicMock(side_effect=_side_effect)
+
+
 def test_orch_full_run_all_stages_done(tmp_path):
     """ORCH-01: run_pipeline level=4 executes all 10 stages; workdir.is_done True for each; output.mp4 exists."""
     from avideo.orchestrator import run_pipeline
     from avideo.utils.workdir import WorkdirManager
 
     config = _make_config(tmp_path, level=4)
-    run_pipeline(config)
+    mock_cs = _mock_call_structured_for_pipeline(tmp_path)
+
+    with (
+        patch("avideo.stages.storyboard.call_structured", mock_cs),
+        patch("avideo.stages.scriptwriter.call_structured", mock_cs),
+    ):
+        run_pipeline(config)
 
     wd = WorkdirManager(config.workdir)
     stage_names = [
@@ -195,7 +290,13 @@ def test_orch_idempotent_second_run(tmp_path, monkeypatch):
 
     # Full first run
     config = _make_config(tmp_path, level=4)
-    run_pipeline(config)
+    mock_cs = _mock_call_structured_for_pipeline(tmp_path)
+
+    with (
+        patch("avideo.stages.storyboard.call_structured", mock_cs),
+        patch("avideo.stages.scriptwriter.call_structured", mock_cs),
+    ):
+        run_pipeline(config)
 
     # Spy: replace each stage's run with a MagicMock
     run_calls = []
@@ -217,14 +318,37 @@ def test_orch_resume_after_partial(tmp_path, monkeypatch):
     from avideo.orchestrator import run_pipeline
     from avideo.stages import stubs as stubs_module
     from avideo.utils.workdir import WorkdirManager
+    from avideo.models.context import ContextOutput
+    from avideo.models.storyboard import SlideSpec, StoryboardOutput, VisualType
+    from avideo.models.timing import SlideTiming, TimingOutput
 
     config = _make_config(tmp_path, level=4)
     wd = WorkdirManager(config.workdir)
 
-    # Simulate first 3 stages already done
-    first_three = ["context", "storyboard", "timing"]
-    for name in first_three:
-        wd.mark_done(name)
+    # Simulate first 3 stages already done — write real checkpoints so downstream
+    # real stages (scriptwriter) can read them
+    context_out = ContextOutput(used=False)
+    storyboard_out = StoryboardOutput(
+        slides=[
+            SlideSpec(title="S1", bullets=["B1", "B2"], visual_type=VisualType.bullets),
+            SlideSpec(title="S2", bullets=["B3"], visual_type=VisualType.bullets),
+        ],
+        language="es",
+    )
+    timings_out = TimingOutput(
+        slides=[
+            SlideTiming(slide_index=0, seconds=70.0, word_budget=175),
+            SlideTiming(slide_index=1, seconds=50.0, word_budget=125),
+        ],
+        total_seconds=120.0,
+        wpm=150,
+    )
+    wd.write_checkpoint("context", context_out)
+    wd.mark_done("context")
+    wd.write_checkpoint("storyboard", storyboard_out)
+    wd.mark_done("storyboard")
+    wd.write_checkpoint("timings", timings_out)
+    wd.mark_done("timing")
 
     # Spy on all stages
     run_calls: dict[str, MagicMock] = {}
@@ -234,8 +358,14 @@ def test_orch_resume_after_partial(tmp_path, monkeypatch):
         monkeypatch.setattr(stage, "run", mock)
         run_calls[stage.stage_name] = mock
 
-    run_pipeline(config)
+    mock_cs = _mock_call_structured_for_pipeline(tmp_path)
+    with (
+        patch("avideo.stages.storyboard.call_structured", mock_cs),
+        patch("avideo.stages.scriptwriter.call_structured", mock_cs),
+    ):
+        run_pipeline(config)
 
+    first_three = ["context", "storyboard", "timing"]
     for name in first_three:
         run_calls[name].assert_not_called()
 
@@ -258,7 +388,13 @@ def test_orch_level4_no_pause(tmp_path, monkeypatch):
     monkeypatch.setattr(orch_module, "pause_for_approval", mock_pause)
 
     config = _make_config(tmp_path, level=4)
-    run_pipeline(config)
+    mock_cs = _mock_call_structured_for_pipeline(tmp_path)
+
+    with (
+        patch("avideo.stages.storyboard.call_structured", mock_cs),
+        patch("avideo.stages.scriptwriter.call_structured", mock_cs),
+    ):
+        run_pipeline(config)
 
     mock_pause.assert_not_called()
 
@@ -273,7 +409,13 @@ def test_orch_level1_pauses_each_stage(tmp_path, monkeypatch):
     monkeypatch.setattr(orch_module, "pause_for_approval", mock_pause)
 
     config = _make_config(tmp_path, level=1)
-    run_pipeline(config)
+    mock_cs = _mock_call_structured_for_pipeline(tmp_path)
+
+    with (
+        patch("avideo.stages.storyboard.call_structured", mock_cs),
+        patch("avideo.stages.scriptwriter.call_structured", mock_cs),
+    ):
+        run_pipeline(config)
 
     assert mock_pause.call_count == 10, (
         f"Expected 10 pause calls for L1, got {mock_pause.call_count}"
@@ -290,7 +432,13 @@ def test_orch_level2_pauses_creative_stages(tmp_path, monkeypatch):
     monkeypatch.setattr(orch_module, "pause_for_approval", mock_pause)
 
     config = _make_config(tmp_path, level=2)
-    run_pipeline(config)
+    mock_cs = _mock_call_structured_for_pipeline(tmp_path)
+
+    with (
+        patch("avideo.stages.storyboard.call_structured", mock_cs),
+        patch("avideo.stages.scriptwriter.call_structured", mock_cs),
+    ):
+        run_pipeline(config)
 
     # Creative stages: storyboard, scriptwriter, slides, verify
     assert mock_pause.call_count == 4, (
