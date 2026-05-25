@@ -108,11 +108,11 @@ Plans:
   2. En modo `--slides-mode manual`, el pipeline valida que `workdir/slides_user/` contiene los PNGs completos antes de continuar
   3. El verificador Claude Vision emite `workdir/verification_report.json` con estado `ok`/`warning`/`fail` por slide, problemas detectados y sugerencias concretas
   4. Con `--level 1` o `--level 2`, el pipeline muestra el informe y pausa para iteración (corregir→re-verificar); con `--level 3`/`4` continúa si todo es `ok` y solo para si hay `fail`; en modo `auto` el verificador no se ejecuta
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 06-01: stages/slides_hybrid.py (propuesta diseño JSON por slide con Claude, pausa orquestador) + stages/slides_manual.py (validación PNGs del usuario)
-- [ ] 06-02: stages/verify_slides.py (rasterizado PyMuPDF/pdf2image, Claude Vision, VerificationReport) + integración approval gates L1-L4 en orquestador
+- [ ] 06-01-PLAN.md — [Wave 1] models/design_proposal.py (SlideDesignProposal) + stages/slides_ingest.py (ingest_slide PNG/PDF-PyMuPDF/PPTX-error) + stages/slides_hybrid.py (brief JSON por slide con Claude + pausa + ingest) + stages/slides_manual.py (validación de cuenta + ingest, warn dims) + stages/slides_dispatch.py (despacha por slides_mode, stage_name=slides) + swap SlidesAutoStage→SlidesDispatchStage en PIPELINE_STAGES — cubre SLIDE-04, SLIDE-05
+- [ ] 06-02-PLAN.md — [Wave 2] utils/image_utils.py (downscale_png_for_api ≤1568px + base64) + integrations/anthropic.py (call_structured_with_images visión + forced tool-use) + stages/verify_slides.py (VerifyStage: 1 llamada visión por slide, verification_report.json atómico, auto-skip) + swap VerifyStub→VerifyStage + orquestador gate post-verify L1/L2 iterar / L3 stop on fail / L4 silencioso — cubre VERIFY-01, VERIFY-02, VERIFY-03
 **UI hint**: yes
 
 ### Phase 7: Empaquetado + Tests + Docs
