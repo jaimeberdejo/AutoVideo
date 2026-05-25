@@ -63,11 +63,11 @@ Plans:
   1. El usuario puede lanzar el pipeline en modo `--slides-mode auto` y obtiene un PNG 1920×1080 por slide en `workdir/slides/` con las fuentes del tema cargadas correctamente
   2. Las slides usan únicamente iconos SVG Lucide/Heroicons servidos offline (sin CDN) y gráficos generados por código — ningún elemento externo descargado en runtime
   3. El tema (paleta, tipografías, espaciado) se lee de `theme.yaml` y la IA propone un tema coherente con el contenido; el usuario puede sobreescribirlo editando el archivo
-**Plans**: 2 plans
+**Plans**: TBD
 
 Plans:
-- [ ] 03-01-PLAN.md — [Wave 1] integrations/playwright.py (SlideRenderer, 1 browser/run, base64 fonts, exact 1920×1080 PNG) + ThemeConfig/DEFAULT_THEME + Jinja2 base + per-visual_type macros (offline Lucide SVG, code-drawn charts) + Wave-0 test scaffolding
-- [ ] 03-02-PLAN.md — [Wave 2] stages/slides_auto.py (read storyboard → idempotent AI theme.yaml w/ default fallback → render each slide → PNG) + PIPELINE_STAGES swap + cost_estimator theme-token gap
+- [ ] 03-01: integrations/playwright.py (sync_playwright, wait_for_function fonts.ready, animations=disabled) + template HTML base (Jinja2) + theme.yaml
+- [ ] 03-02: stages/slides_auto.py (Jinja2 → HTML → Playwright → PNG por slide; iconos Lucide offline) + test de smoke de render
 
 ### Phase 4: Voz + Subtítulos
 **Goal**: El pipeline genera audio sincronizado por slide (ElevenLabs con timestamps o grabación del usuario) y produce subtítulos `.srt`/`.vtt` listos para el montaje
@@ -78,12 +78,12 @@ Plans:
   2. En modo `--voice record`, el sistema exporta el guion segmentado y permite grabar con `sounddevice` o aportar `slide_XX.wav` — los archivos ingestados se detectan automáticamente
   3. En modo `record`, WhisperX alinea el audio y produce timings por palabra; en modo `elevenlabs` la alineación no se ejecuta
   4. El sistema siempre genera `workdir/subs/output.srt` y `output.vtt` a partir de los timings — el quemado en vídeo es opcional mediante flag `--burn-subs`
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 04-01: integrations/elevenlabs.py (convert_with_timestamps, validación de secuencia start_times, retry) + stages/voice_elevenlabs.py → audio/ + timings
-- [ ] 04-02: stages/voice_record.py (exportar guion segmentado, ingestar slide_XX.wav) + integrations/whisperx.py + stages/align.py → word-level timings
-- [ ] 04-03: stages/subtitles.py (timings → SRT/VTT, lógica pura) + flag --burn-subs registrado en RunConfig
+- [ ] 04-01-PLAN.md — [Wave 1] models/timings.py (UnifiedTimings) + integrations/elevenlabs.py (convert_with_timestamps seconds + validación estrictamente-creciente + retry≤3) + stages/voice_elevenlabs.py + VoiceStage despachador + RunConfig (whisperx_model) + deps elevenlabs/extra record + scaffolding tests Wave 0
+- [ ] 04-02-PLAN.md — [Wave 2] integrations/whisperx.py (align_wav import perezoso, CPU int8) + stages/voice_record.py (export guion segmentado + autodetect/grabar slide_XX.wav) + stages/align.py (record→whisperx por palabra; elevenlabs→no-op idempotente)
+- [ ] 04-03-PLAN.md — [Wave 3] utils/subtitle_format.py (segmentación de cues + SRT/VTT puro) + stages/subtitles.py (UnifiedTimings → output.srt/.vtt con offset global; no quema con --burn-subs) + swap voice/align/subs en PIPELINE_STAGES
 
 ### Phase 5: Montaje + QA
 **Goal**: El pipeline monta el vídeo final 1080p 16:9 sincronizando slides + audios con FFmpeg (duraciones reales medidas por ffprobe), aplica crossfade configurable y loudnorm, y emite un informe QA con desviación de duración y nivel LUFS
