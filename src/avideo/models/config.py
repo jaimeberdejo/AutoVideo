@@ -66,6 +66,7 @@ class RunConfig(BaseSettings):
         yaml_file="config.yaml",
         yaml_file_encoding="utf-8",
         extra="ignore",
+        env_prefix="AVIDEO_",  # Avoid collisions with common OS vars (LANGUAGE, LEVEL, etc.)
     )
 
     @classmethod
