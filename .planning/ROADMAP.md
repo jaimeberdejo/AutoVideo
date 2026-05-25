@@ -111,7 +111,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 06-01-PLAN.md — [Wave 1] models/design_proposal.py (SlideDesignProposal) + stages/slides_ingest.py (ingest_slide PNG/PDF-PyMuPDF/PPTX-error) + stages/slides_hybrid.py (brief JSON por slide con Claude + pausa + ingest) + stages/slides_manual.py (validación de cuenta + ingest, warn dims) + stages/slides_dispatch.py (despacha por slides_mode, stage_name=slides) + swap SlidesAutoStage→SlidesDispatchStage en PIPELINE_STAGES — cubre SLIDE-04, SLIDE-05
+- [x] 06-01-PLAN.md — [Wave 1] models/design_proposal.py (SlideDesignProposal) + stages/slides_ingest.py (ingest_slide PNG/PDF-PyMuPDF/PPTX-error) + stages/slides_hybrid.py (brief JSON por slide con Claude + pausa + ingest) + stages/slides_manual.py (validación de cuenta + ingest, warn dims) + stages/slides_dispatch.py (despacha por slides_mode, stage_name=slides) + swap SlidesAutoStage→SlidesDispatchStage en PIPELINE_STAGES — cubre SLIDE-04, SLIDE-05
 - [ ] 06-02-PLAN.md — [Wave 2] utils/image_utils.py (downscale_png_for_api ≤1568px + base64) + integrations/anthropic.py (call_structured_with_images visión + forced tool-use) + stages/verify_slides.py (VerifyStage: 1 llamada visión por slide, verification_report.json atómico, auto-skip) + swap VerifyStub→VerifyStage + orquestador gate post-verify L1/L2 iterar / L3 stop on fail / L4 silencioso — cubre VERIFY-01, VERIFY-02, VERIFY-03
 **UI hint**: yes
 
