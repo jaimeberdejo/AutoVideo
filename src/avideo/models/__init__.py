@@ -1,5 +1,6 @@
 """avideo.models — re-exports all pipeline I/O contracts and enums."""
 from .assembly import AssemblyOutput, QAReport
+from .bullets import BulletsInput
 from .config import RunConfig, SlidesMode, VoiceMode
 from .context import ContextOutput
 from .script import ScriptOutput, SlideScript
@@ -13,6 +14,8 @@ __all__ = [
     # Enums
     "VoiceMode",
     "SlidesMode",
+    # Input contracts
+    "BulletsInput",
     # Config
     "RunConfig",
     # Stage outputs
