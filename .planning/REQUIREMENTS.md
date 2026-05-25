@@ -28,23 +28,23 @@ Requisitos del release inicial. Cada uno se mapea a fases del roadmap.
 
 ### CTX — Ingesta de contexto
 
-- [ ] **CTX-01**: El usuario puede aportar `.pptx`/`.pdf`/`.md` y el sistema extrae su texto como material de referencia
-- [ ] **CTX-02**: El ingestor es opcional; sin contexto el pipeline funciona igual
+- [x] **CTX-01**: El usuario puede aportar `.pptx`/`.pdf`/`.md` y el sistema extrae su texto como material de referencia
+- [x] **CTX-02**: El ingestor es opcional; sin contexto el pipeline funciona igual
 
 ### STORY — Storyboard
 
-- [ ] **STORY-01**: El sistema genera un storyboard (nº de slides + título/puntos/tipo de visual por slide) con la API de Anthropic a partir de bullets + duración
-- [ ] **STORY-02**: El storyboard se devuelve como JSON estructurado, validado con pydantic y persistido en `workdir/storyboard.json`
+- [x] **STORY-01**: El sistema genera un storyboard (nº de slides + título/puntos/tipo de visual por slide) con la API de Anthropic a partir de bullets + duración
+- [x] **STORY-02**: El storyboard se devuelve como JSON estructurado, validado con pydantic y persistido en `workdir/storyboard.json`
 
 ### TIME — Director de timing
 
-- [ ] **TIME-01**: El director reparte la duración total entre slides según la densidad de contenido
-- [ ] **TIME-02**: Calcula el presupuesto de palabras por slide según WPM configurable (por defecto 150)
+- [x] **TIME-01**: El director reparte la duración total entre slides según la densidad de contenido
+- [x] **TIME-02**: Calcula el presupuesto de palabras por slide según WPM configurable (por defecto 150)
 
 ### SCRIPT — Guionista
 
-- [ ] **SCRIPT-01**: El guionista genera con Claude la narración por slide ajustada al presupuesto de palabras
-- [ ] **SCRIPT-02**: El guion se devuelve como JSON estructurado, en el idioma configurado (por defecto español), con tono natural para locución
+- [x] **SCRIPT-01**: El guionista genera con Claude la narración por slide ajustada al presupuesto de palabras
+- [x] **SCRIPT-02**: El guion se devuelve como JSON estructurado, en el idioma configurado (por defecto español), con tono natural para locución
 
 ### SLIDE — Diseño y generación de slides
 
@@ -145,14 +145,14 @@ Qué fases cubren qué requisitos.
 | ORCH-03 | Phase 1 | Complete |
 | ORCH-04 | Phase 1 | Complete |
 | ORCH-05 | Phase 1 | Complete |
-| CTX-01 | Phase 2 | Pending |
-| CTX-02 | Phase 2 | Pending |
-| STORY-01 | Phase 2 | Pending |
-| STORY-02 | Phase 2 | Pending |
-| TIME-01 | Phase 2 | Pending |
-| TIME-02 | Phase 2 | Pending |
-| SCRIPT-01 | Phase 2 | Pending |
-| SCRIPT-02 | Phase 2 | Pending |
+| CTX-01 | Phase 2 | Complete |
+| CTX-02 | Phase 2 | Complete |
+| STORY-01 | Phase 2 | Complete |
+| STORY-02 | Phase 2 | Complete |
+| TIME-01 | Phase 2 | Complete |
+| TIME-02 | Phase 2 | Complete |
+| SCRIPT-01 | Phase 2 | Complete |
+| SCRIPT-02 | Phase 2 | Complete |
 | SLIDE-01 | Phase 3 | Pending |
 | SLIDE-02 | Phase 3 | Pending |
 | SLIDE-03 | Phase 3 | Pending |
