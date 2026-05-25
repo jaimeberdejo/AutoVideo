@@ -96,7 +96,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 05-01-PLAN.md — [Wave 1] Wave-0 test scaffold (tests/test_assemble.py + conftest fixtures) + RunConfig (crossfade_seconds, target_lufs) + integrations/ffmpeg.py (ffprobe duraciones reales, math de offsets/clamp verificada, filtergraph xfade/concat/single, build_assemble_args con +faststart, run_ffmpeg arg-list nunca shell=True) + stages/assemble.py (AssembleStage: encode 1080p 16:9, atómico tmp→rename, idempotente, burn-subs opcional)
+- [x] 05-01-PLAN.md — [Wave 1] Wave-0 test scaffold (tests/test_assemble.py + conftest fixtures) + RunConfig (crossfade_seconds, target_lufs) + integrations/ffmpeg.py (ffprobe duraciones reales, math de offsets/clamp verificada, filtergraph xfade/concat/single, build_assemble_args con +faststart, run_ffmpeg arg-list nunca shell=True) + stages/assemble.py (AssembleStage: encode 1080p 16:9, atómico tmp→rename, idempotente, burn-subs opcional)
 - [ ] 05-02-PLAN.md — [Wave 2] QAReport (measured_lufs + normalized_lufs) + stages/qa.py (parse_loudnorm_json puro, deviation, build_qa_report) + loudnorm dos pasadas en integrations/ffmpeg.py (+faststart tras -c:v copy) + QA como sub-paso de AssembleStage (qa_report.json + tabla Rich) + swap AssembleStub→AssembleStage en PIPELINE_STAGES
 
 ### Phase 6: Slides Hybrid/Manual + Verificador
