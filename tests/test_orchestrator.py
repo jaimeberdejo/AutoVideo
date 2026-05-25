@@ -64,15 +64,15 @@ def test_stage_protocol_isinstance():
 def test_stub_run_returns_pydantic_basemodel(tmp_path):
     """ORCH-05: each stage.run returns a Pydantic BaseModel instance.
 
-    Real LLM stages (storyboard, scriptwriter) are mocked so no API calls are made.
-    Checkpoints for dependent stages (timing, scriptwriter) are pre-created to
-    simulate a partially-run pipeline.
+    Real stages (storyboard, scriptwriter, voice) are mocked so no API calls are made.
+    Checkpoints are written between stage runs to simulate the real orchestrator loop.
     """
     from pydantic import BaseModel
 
     from avideo.models import RunConfig
     from avideo.models.storyboard import SlideSpec, StoryboardOutput, VisualType
     from avideo.models.timing import SlideTiming, TimingOutput
+    from avideo.models.timings import SlideTimings, WordTiming
     from avideo.stages.stubs import PIPELINE_STAGES
     from avideo.utils.workdir import WorkdirManager
 
@@ -120,21 +120,37 @@ def test_stub_run_returns_pydantic_basemodel(tmp_path):
             return DEFAULT_THEME
         raise RuntimeError(f"Unexpected output_model: {output_model}")
 
+    # Mock synthesize_slide for VoiceStage (ElevenLabs path — no real API call)
+    fake_slide_timings = SlideTimings(
+        slide_index=0,
+        audio_path="audio/slide_00.mp3",
+        duration=5.0,
+        words=[
+            WordTiming(text="palabra", start=0.1, end=0.5),
+            WordTiming(text="narrada", start=0.6, end=1.0),
+        ],
+    )
+
     mock_cs = MagicMock(side_effect=_cs_side_effect)
     mock_renderer_cls, _ = _mock_renderer_cls()
 
-    # Mock call_structured for storyboard, scriptwriter, slides_auto; mock SlideRenderer
+    # Mock call_structured for storyboard, scriptwriter, slides_auto; mock SlideRenderer;
+    # mock synthesize_slide for VoiceElevenlabsStage (Phase 4).
     with (
         patch("avideo.stages.storyboard.call_structured", mock_cs),
         patch("avideo.stages.scriptwriter.call_structured", mock_cs),
         patch("avideo.stages.slides_auto.call_structured", mock_cs),
         patch("avideo.stages.slides_auto.SlideRenderer", mock_renderer_cls),
+        patch("avideo.stages.voice_elevenlabs.synthesize_slide", return_value=fake_slide_timings),
     ):
         for stage in PIPELINE_STAGES:
             result = stage.run(workdir, config)
             assert isinstance(result, BaseModel), (
                 f"{stage.stage_name}.run() returned {type(result)}, expected BaseModel"
             )
+            # Write checkpoint between runs so downstream stages can read it
+            # (mirrors what the real orchestrator loop does)
+            workdir.write_checkpoint(stage.checkpoint_name, result)
 
 
 def test_storyboard_stub_returns_at_least_one_slide(tmp_path):
@@ -291,6 +307,31 @@ def _mock_call_structured_for_pipeline(tmp_path: Path):
     return MagicMock(side_effect=_side_effect)
 
 
+def _fake_synthesize_slide_factory():
+    """Return a side_effect function for mocking synthesize_slide in pipeline tests.
+
+    Produces a SlideTimings with real words so SubtitlesStage can generate cues.
+    The slide_index is read from the kwargs to produce correctly indexed output.
+    """
+    from avideo.models.timings import SlideTimings, WordTiming
+
+    def _synthesize(text, slide_index, voice_id, out_path):
+        # Write a zero-byte file so subsequent file-existence checks don't fail
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.touch()
+        return SlideTimings(
+            slide_index=slide_index,
+            audio_path=str(out_path),
+            duration=3.0,
+            words=[
+                WordTiming(text="hola", start=0.1, end=0.5),
+                WordTiming(text="mundo", start=0.6, end=1.0),
+            ],
+        )
+
+    return _synthesize
+
+
 def test_orch_full_run_all_stages_done(tmp_path):
     """ORCH-01: run_pipeline level=4 executes all 10 stages; workdir.is_done True for each; output.mp4 exists."""
     from avideo.orchestrator import run_pipeline
@@ -305,6 +346,7 @@ def test_orch_full_run_all_stages_done(tmp_path):
         patch("avideo.stages.scriptwriter.call_structured", mock_cs),
         patch("avideo.stages.slides_auto.call_structured", mock_cs),
         patch("avideo.stages.slides_auto.SlideRenderer", mock_renderer_cls),
+        patch("avideo.stages.voice_elevenlabs.synthesize_slide", side_effect=_fake_synthesize_slide_factory()),
     ):
         run_pipeline(config)
 
@@ -333,6 +375,7 @@ def test_orch_idempotent_second_run(tmp_path, monkeypatch):
         patch("avideo.stages.scriptwriter.call_structured", mock_cs),
         patch("avideo.stages.slides_auto.call_structured", mock_cs),
         patch("avideo.stages.slides_auto.SlideRenderer", mock_renderer_cls),
+        patch("avideo.stages.voice_elevenlabs.synthesize_slide", side_effect=_fake_synthesize_slide_factory()),
     ):
         run_pipeline(config)
 
@@ -403,6 +446,7 @@ def test_orch_resume_after_partial(tmp_path, monkeypatch):
         patch("avideo.stages.scriptwriter.call_structured", mock_cs),
         patch("avideo.stages.slides_auto.call_structured", mock_cs),
         patch("avideo.stages.slides_auto.SlideRenderer", mock_renderer_cls),
+        patch("avideo.stages.voice_elevenlabs.synthesize_slide", side_effect=_fake_synthesize_slide_factory()),
     ):
         run_pipeline(config)
 
@@ -437,6 +481,7 @@ def test_orch_level4_no_pause(tmp_path, monkeypatch):
         patch("avideo.stages.scriptwriter.call_structured", mock_cs),
         patch("avideo.stages.slides_auto.call_structured", mock_cs),
         patch("avideo.stages.slides_auto.SlideRenderer", mock_renderer_cls),
+        patch("avideo.stages.voice_elevenlabs.synthesize_slide", side_effect=_fake_synthesize_slide_factory()),
     ):
         run_pipeline(config)
 
@@ -461,6 +506,7 @@ def test_orch_level1_pauses_each_stage(tmp_path, monkeypatch):
         patch("avideo.stages.scriptwriter.call_structured", mock_cs),
         patch("avideo.stages.slides_auto.call_structured", mock_cs),
         patch("avideo.stages.slides_auto.SlideRenderer", mock_renderer_cls),
+        patch("avideo.stages.voice_elevenlabs.synthesize_slide", side_effect=_fake_synthesize_slide_factory()),
     ):
         run_pipeline(config)
 
@@ -487,6 +533,7 @@ def test_orch_level2_pauses_creative_stages(tmp_path, monkeypatch):
         patch("avideo.stages.scriptwriter.call_structured", mock_cs),
         patch("avideo.stages.slides_auto.call_structured", mock_cs),
         patch("avideo.stages.slides_auto.SlideRenderer", mock_renderer_cls),
+        patch("avideo.stages.voice_elevenlabs.synthesize_slide", side_effect=_fake_synthesize_slide_factory()),
     ):
         run_pipeline(config)
 
