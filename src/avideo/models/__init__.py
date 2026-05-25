@@ -6,6 +6,7 @@ from .context import ContextOutput
 from .script import ScriptOutput, SlideScript
 from .slides import SlidesOutput
 from .storyboard import SlideSpec, StoryboardOutput, VisualType
+from .theme import DEFAULT_THEME, ThemeConfig
 from .timing import SlideTiming, TimingOutput
 from .verification import SlideVerdict, VerificationReport
 from .voice import VoiceOutput
@@ -33,4 +34,7 @@ __all__ = [
     "VoiceOutput",
     "QAReport",
     "AssemblyOutput",
+    # Theme
+    "ThemeConfig",
+    "DEFAULT_THEME",
 ]

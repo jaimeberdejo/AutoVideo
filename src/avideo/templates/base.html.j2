@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+{#
+  base.html.j2 — 1920×1080 slide canvas with theme CSS variables + macro dispatch.
+
+  Template variables:
+    slide       : SlideSpec — title, bullets, visual_type
+    theme       : ThemeConfig — palette, typography, metrics
+    font_face_css : str — base64 @font-face CSS injected by the stage
+                    (empty string when no custom font is requested)
+
+  Security note (T-03-02): Jinja2 autoescape is ENABLED via the Environment.
+  Only ``icon()`` calls (trusted SVG from python-lucide) are marked ``|safe``.
+  Never mark slide.title or slide.bullets items ``|safe``.
+
+  Offline constraint (D-08): no external URLs — all fonts must arrive via
+  font_face_css (base64 data-URI), and all icons via the icon() Jinja2 global.
+  CSS must not reference url(http://...) or url(https://...).
+
+  Pitfall 3/4 mitigation: html,body fixed to 1920×1080 with overflow:hidden so
+  the Playwright screenshot never exceeds the viewport.
+#}
+<html lang="{{ slide.language | default('es') }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1920, height=1080">
+<style>
+  /* -----------------------------------------------------------------------
+     @font-face slot (D-08, RESEARCH Pitfall 2):
+     The stage injects base64-encoded @font-face declarations here so that
+     Playwright's set_content() (which has no base URL) can load fonts
+     offline. Do NOT reference font files by relative or absolute path.
+  ----------------------------------------------------------------------- */
+  {{ font_face_css }}
+
+  /* -----------------------------------------------------------------------
+     CSS custom properties from ThemeConfig (D-04, RESEARCH Pattern 2).
+     All visual styles in macros.html.j2 reference these vars so the
+     theme is applied consistently across all visual_type macros.
+  ----------------------------------------------------------------------- */
+  :root {
+    --color-primary:  {{ theme.palette.primary }};
+    --color-bg:       {{ theme.palette.background }};
+    --color-text:     {{ theme.palette.text }};
+    --color-accent:   {{ theme.palette.accent }};
+    --font-heading:   '{{ theme.typography.heading }}', sans-serif;
+    --font-body:      '{{ theme.typography.body }}', sans-serif;
+    --base-font:      {{ theme.base_font_px }}px;
+    --scale:          {{ theme.scale }};
+    --margin:         {{ theme.margin_px }}px;
+    --gap:            {{ theme.gap_px }}px;
+
+    /* Derived sizes: heading = base × scale², sub = base × scale */
+    --font-size-h1:   {{ (theme.base_font_px * theme.scale * theme.scale) | round | int }}px;
+    --font-size-h2:   {{ (theme.base_font_px * theme.scale) | round | int }}px;
+    --font-size-body: {{ theme.base_font_px }}px;
+    --font-size-small:{{ (theme.base_font_px / theme.scale) | round | int }}px;
+  }
+
+  /* -----------------------------------------------------------------------
+     Canvas reset — MUST fix dimensions to exactly 1920×1080 (D-06).
+     overflow:hidden prevents content overflow from expanding the PNG
+     beyond the viewport (RESEARCH Pitfall 3/4, T-03-04).
+  ----------------------------------------------------------------------- */
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html, body {
+    width: 1920px;
+    height: 1080px;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-size: var(--base-font);
+  }
+
+  /* -----------------------------------------------------------------------
+     Shared layout helpers used by multiple macros
+  ----------------------------------------------------------------------- */
+  .slide-canvas {
+    width: 1920px;
+    height: 1080px;
+    padding: var(--margin);
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .slide-title {
+    font-family: var(--font-heading);
+    font-size: var(--font-size-h1);
+    font-weight: 700;
+    color: var(--color-primary);
+    line-height: 1.1;
+    margin: 0;
+  }
+
+  .slide-subtitle {
+    font-family: var(--font-heading);
+    font-size: var(--font-size-h2);
+    font-weight: 500;
+    color: var(--color-text);
+    line-height: 1.2;
+    margin: 0;
+  }
+
+  .slide-bullets {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--gap) * 0.75);
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .slide-bullets li {
+    font-size: var(--font-size-body);
+    line-height: 1.4;
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    overflow: hidden;
+  }
+
+  .bullet-dot {
+    flex-shrink: 0;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--color-accent);
+    margin-top: 12px;
+  }
+
+  .bullet-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  .accent-bar {
+    width: 80px;
+    height: 6px;
+    background: var(--color-accent);
+    border-radius: 3px;
+    margin-bottom: 8px;
+  }
+
+  .icon-wrapper {
+    color: var(--color-accent);
+  }
+</style>
+</head>
+<body>
+
+{#
+  Macro dispatch by visual_type (D-04, RESEARCH Pattern 5).
+  Uses a Jinja2 mapping dict keyed by visual_type.value strings.
+  Fallback to bullets_slide for any unknown value (RESEARCH Pitfall 5 —
+  stale workdir with visual_type="text" from Phase-1 stub).
+#}
+{% from "macros.html.j2" import
+    title_slide,
+    bullets_slide,
+    chart_slide,
+    diagram_slide,
+    quote_slide,
+    comparison_slide,
+    image_icon_slide
+%}
+
+{% set renderers = {
+  "title":       title_slide,
+  "bullets":     bullets_slide,
+  "chart":       chart_slide,
+  "diagram":     diagram_slide,
+  "quote":       quote_slide,
+  "comparison":  comparison_slide,
+  "image_icon":  image_icon_slide
+} %}
+
+{# Dispatch: get renderer for this visual_type, fall back to bullets_slide #}
+{% set renderer = renderers.get(slide.visual_type.value, bullets_slide) %}
+{{ renderer(slide, theme) }}
+
+</body>
+</html>
