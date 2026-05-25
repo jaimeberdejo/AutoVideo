@@ -63,7 +63,7 @@ Plans:
   1. El usuario puede lanzar el pipeline en modo `--slides-mode auto` y obtiene un PNG 1920×1080 por slide en `workdir/slides/` con las fuentes del tema cargadas correctamente
   2. Las slides usan únicamente iconos SVG Lucide/Heroicons servidos offline (sin CDN) y gráficos generados por código — ningún elemento externo descargado en runtime
   3. El tema (paleta, tipografías, espaciado) se lee de `theme.yaml` y la IA propone un tema coherente con el contenido; el usuario puede sobreescribirlo editando el archivo
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
 - [x] 03-01: integrations/playwright.py (sync_playwright, wait_for_function fonts.ready, animations=disabled) + template HTML base (Jinja2) + theme.yaml
@@ -93,11 +93,11 @@ Plans:
   1. El pipeline produce `workdir/output.mp4` en 1080p 16:9 sincronizando slides y audios usando las duraciones reales medidas por ffprobe (no estimadas por WPM)
   2. El vídeo final aplica transiciones crossfade configurables entre slides (parámetro en config.yaml)
   3. El informe QA (`workdir/qa_report.json`) muestra la desviación entre duración real y objetivo, y el nivel LUFS medido y normalizado (EBU R128, dos pasadas)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 05-01: integrations/ffmpeg.py (fluent builder subprocess, captura stderr, spike crossfade xfade/acrossfade) + stages/assemble.py (concat duraciones reales ffprobe, crossfade, burn-subs opcional)
-- [ ] 05-02: stages/qa.py (ffprobe duración real vs objetivo, loudnorm dos pasadas) + qa_report.json + display QA en RichUI
+- [ ] 05-01-PLAN.md — [Wave 1] Wave-0 test scaffold (tests/test_assemble.py + conftest fixtures) + RunConfig (crossfade_seconds, target_lufs) + integrations/ffmpeg.py (ffprobe duraciones reales, math de offsets/clamp verificada, filtergraph xfade/concat/single, build_assemble_args con +faststart, run_ffmpeg arg-list nunca shell=True) + stages/assemble.py (AssembleStage: encode 1080p 16:9, atómico tmp→rename, idempotente, burn-subs opcional)
+- [ ] 05-02-PLAN.md — [Wave 2] QAReport (measured_lufs + normalized_lufs) + stages/qa.py (parse_loudnorm_json puro, deviation, build_qa_report) + loudnorm dos pasadas en integrations/ffmpeg.py (+faststart tras -c:v copy) + QA como sub-paso de AssembleStage (qa_report.json + tabla Rich) + swap AssembleStub→AssembleStage en PIPELINE_STAGES
 
 ### Phase 6: Slides Hybrid/Manual + Verificador
 **Goal**: Los modos `hybrid` y `manual` permiten que el usuario aporte sus propias slides; el verificador usa Claude con visión para auditar cobertura, fidelidad y encaje con el guion — con comportamiento diferenciado según el nivel L1-L4
