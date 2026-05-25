@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.60.0
 milestone_name: milestone
-status: executing
+status: ready_to_plan
 stopped_at: Roadmap creado y aprobado — listo para planificar Phase 1
 last_updated: "2026-05-25T20:15:32.858Z"
 last_activity: 2026-05-25 -- Phase 05 execution started
 progress:
   total_phases: 7
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 13
   completed_plans: 11
-  percent: 85
+  percent: 71
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-05-25)
 
 ## Current Position
 
-Phase: 05 (Montaje + QA) — EXECUTING
-Plan: 1 of 2
-Status: Executing Phase 05
-Last activity: 2026-05-25 -- Phase 05 execution started
+Phase: 6
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-05-25
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -36,7 +36,7 @@ Progress: [░░░░░░░░░░] 0%
 
 **Velocity:**
 
-- Total plans completed: 11
+- Total plans completed: 13
 - Average duration: — min
 - Total execution time: 0.0 hours
 
@@ -48,6 +48,7 @@ Progress: [░░░░░░░░░░] 0%
 | 2 | 3 | - | - |
 | 3 | 2 | - | - |
 | 4 | 3 | - | - |
+| 05 | 2 | - | - |
 
 **Recent Trend:**
 
