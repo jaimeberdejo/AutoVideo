@@ -63,11 +63,11 @@ Plans:
   1. El usuario puede lanzar el pipeline en modo `--slides-mode auto` y obtiene un PNG 1920×1080 por slide en `workdir/slides/` con las fuentes del tema cargadas correctamente
   2. Las slides usan únicamente iconos SVG Lucide/Heroicons servidos offline (sin CDN) y gráficos generados por código — ningún elemento externo descargado en runtime
   3. El tema (paleta, tipografías, espaciado) se lee de `theme.yaml` y la IA propone un tema coherente con el contenido; el usuario puede sobreescribirlo editando el archivo
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 03-01: integrations/playwright.py (sync_playwright, wait_for_function fonts.ready, animations=disabled) + template HTML base (Jinja2) + theme.yaml
-- [ ] 03-02: stages/slides_auto.py (Jinja2 → HTML → Playwright → PNG por slide; iconos Lucide offline) + test de smoke de render
+- [ ] 03-01-PLAN.md — [Wave 1] integrations/playwright.py (SlideRenderer, 1 browser/run, base64 fonts, exact 1920×1080 PNG) + ThemeConfig/DEFAULT_THEME + Jinja2 base + per-visual_type macros (offline Lucide SVG, code-drawn charts) + Wave-0 test scaffolding
+- [ ] 03-02-PLAN.md — [Wave 2] stages/slides_auto.py (read storyboard → idempotent AI theme.yaml w/ default fallback → render each slide → PNG) + PIPELINE_STAGES swap + cost_estimator theme-token gap
 
 ### Phase 4: Voz + Subtítulos
 **Goal**: El pipeline genera audio sincronizado por slide (ElevenLabs con timestamps o grabación del usuario) y produce subtítulos `.srt`/`.vtt` listos para el montaje
