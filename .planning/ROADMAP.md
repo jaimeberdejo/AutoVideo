@@ -48,12 +48,12 @@ Plans:
   2. El sistema genera `workdir/storyboard.json` con estructura de slides (título, puntos, tipo de visual) validado por Pydantic — el pipeline es reanudable desde este checkpoint
   3. El sistema calcula `workdir/timings.json` con duración por slide y presupuesto de palabras (WPM configurable, por defecto 150) — la suma de duraciones iguala la duración objetivo
   4. El sistema genera `workdir/script.json` con narración por slide en español, ajustada al presupuesto de palabras y con tono natural para locución
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 02-01: Ingestor de contexto (PyMuPDF + python-pptx + markdown) → ContextOutput
-- [ ] 02-02: integrations/anthropic.py (retry exponencial, Structured Outputs) + stages/storyboard.py → storyboard.json
-- [ ] 02-03: stages/timing.py (lógica WPM pura) + stages/scriptwriter.py (Claude calibrado) → timings.json + script.json; cost_estimator para --dry-run
+- [ ] 02-01-PLAN.md — [Wave 1] Ingestor de contexto (PyMuPDF/python-pptx/markdown → ContextOutput) + loader compartido bullets.yaml (BulletsInput + load_bullets, cierra el gap de bullets nunca parseados) + deps anthropic/PyMuPDF/python-pptx
+- [ ] 02-02-PLAN.md — [Wave 2] integrations/anthropic.py (cliente lazy max_retries=3 + helper call_structured tool-use→Pydantic) + VisualType enum + stages/storyboard.py → StoryboardOutput
+- [ ] 02-03-PLAN.md — [Wave 3] stages/timing.py (largest-remainder, suma exacta + clamps) + stages/scriptwriter.py (whole-script + 1 reintento de calibración) + cost_estimator offline real + swap final de stubs en PIPELINE_STAGES
 
 ### Phase 3: Slides Auto
 **Goal**: En modo `auto`, cada slide del storyboard se renderiza a PNG 1920×1080 píxeles con calidad pixel-perfect usando HTML/CSS + Playwright — con tema parametrizable en `theme.yaml` e iconos SVG Lucide servidos offline
