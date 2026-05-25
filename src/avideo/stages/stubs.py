@@ -46,8 +46,11 @@ from avideo.stages.scriptwriter import ScriptwriterStage
 from avideo.stages.storyboard import StoryboardStage
 from avideo.stages.timing import TimingStage
 
-# Real Phase-3 stage implementation (replacing SlidesStub in PIPELINE_STAGES)
+# Real Phase-3 stage implementation (still used by SlidesDispatchStage transitively)
 from avideo.stages.slides_auto import SlidesAutoStage
+
+# Real Phase-6 stage implementation (replacing SlidesAutoStage in PIPELINE_STAGES)
+from avideo.stages.slides_dispatch import SlidesDispatchStage
 
 # Real Phase-4 stage implementations (replacing VoiceStub/AlignStub/SubsStub in PIPELINE_STAGES)
 from avideo.stages.align import AlignStage
@@ -288,7 +291,7 @@ PIPELINE_STAGES: list = [
     StoryboardStage(),    # Phase 2: real LLM storyboard (was StoryboardStub)
     TimingStage(),        # Phase 2: real timing apportionment (was TimingStub)
     ScriptwriterStage(),  # Phase 2: real LLM scriptwriter (was ScriptwriterStub)
-    SlidesAutoStage(),    # Phase 3: real (was SlidesStub) — stage_name='slides'
+    SlidesDispatchStage(),  # Phase 6: dispatcher (was SlidesAutoStage()) — stage_name='slides'
     VerifyStub(),         # Phase 6: placeholder
     VoiceStage(),         # Phase 4: real TTS dispatcher (was VoiceStub) — stage_name='voice'
     AlignStage(),         # Phase 4: real alignment (was AlignStub) — stage_name='align'

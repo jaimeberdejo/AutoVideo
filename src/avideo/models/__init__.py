@@ -3,6 +3,7 @@ from .assembly import AssemblyOutput, QAReport
 from .bullets import BulletsInput
 from .config import RunConfig, SlidesMode, VoiceMode
 from .context import ContextOutput
+from .design_proposal import SlideDesignProposal
 from .script import ScriptOutput, SlideScript
 from .slides import SlidesOutput
 from .storyboard import SlideSpec, StoryboardOutput, VisualType
@@ -31,6 +32,7 @@ __all__ = [
     "SlideScript",
     "ScriptOutput",
     "SlidesOutput",
+    "SlideDesignProposal",
     "SlideVerdict",
     "VerificationReport",
     "VoiceOutput",
