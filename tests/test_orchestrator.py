@@ -82,6 +82,39 @@ def _fake_run_ffmpeg_factory():
 def _fake_probe_duration(_path: str) -> float:
     return 5.0
 
+
+def _fake_verify_factory():
+    """Return a side_effect for call_structured_with_images that returns an ok SlideVerdict.
+
+    Mirrors _fake_run_ffmpeg_factory() pattern — returns a canned ok verdict
+    so full-pipeline tests never hit the Anthropic API.
+    """
+    from avideo.models.verification import SlideVerdict
+
+    call_count = [0]
+
+    def _fake(**kwargs):
+        idx = call_count[0]
+        call_count[0] += 1
+        return SlideVerdict(slide_index=idx, status="ok")
+
+    return _fake
+
+
+def _make_slide_pngs(workdir: Path, n: int = 2) -> list[str]:
+    """Create tiny PNG files in workdir/slides/ and return their paths."""
+    from PIL import Image
+
+    slides_dir = workdir / "slides"
+    slides_dir.mkdir(parents=True, exist_ok=True)
+    paths = []
+    for i in range(n):
+        p = slides_dir / f"slide_{i:02d}.png"
+        Image.new("RGB", (100, 60), (10, 20, 30)).save(p, format="PNG")
+        paths.append(str(p))
+    return paths
+
+
 # ---------------------------------------------------------------------------
 # Task 1 — Stage protocol, stubs, PIPELINE_STAGES
 # ---------------------------------------------------------------------------
@@ -202,12 +235,13 @@ def test_stub_run_returns_pydantic_basemodel(tmp_path):
     mock_renderer_cls, _ = _mock_renderer_cls()
 
     # Mock call_structured for storyboard, scriptwriter, slides_auto; mock SlideRenderer;
-    # mock synthesize_slide for VoiceElevenlabsStage (Phase 4).
+    # mock synthesize_slide for VoiceElevenlabsStage (Phase 4); mock verify vision call.
     with (
         patch("avideo.stages.storyboard.call_structured", mock_cs),
         patch("avideo.stages.scriptwriter.call_structured", mock_cs),
         patch("avideo.stages.slides_auto.call_structured", mock_cs),
         patch("avideo.stages.slides_auto.SlideRenderer", mock_renderer_cls),
+        patch("avideo.stages.verify_slides.call_structured_with_images", side_effect=_fake_verify_factory()),
         patch("avideo.stages.voice_elevenlabs.synthesize_slide", return_value=fake_slide_timings),
         patch("avideo.stages.assemble.run_ffmpeg", side_effect=_fake_run_ffmpeg_factory()),
         patch("avideo.stages.assemble.probe_duration", side_effect=_fake_probe_duration),
@@ -415,6 +449,7 @@ def test_orch_full_run_all_stages_done(tmp_path):
         patch("avideo.stages.scriptwriter.call_structured", mock_cs),
         patch("avideo.stages.slides_auto.call_structured", mock_cs),
         patch("avideo.stages.slides_auto.SlideRenderer", mock_renderer_cls),
+        patch("avideo.stages.verify_slides.call_structured_with_images", side_effect=_fake_verify_factory()),
         patch("avideo.stages.voice_elevenlabs.synthesize_slide", side_effect=_fake_synthesize_slide_factory()),
         patch("avideo.stages.assemble.run_ffmpeg", side_effect=_fake_run_ffmpeg_factory()),
         patch("avideo.stages.assemble.probe_duration", side_effect=_fake_probe_duration),
@@ -446,6 +481,7 @@ def test_orch_idempotent_second_run(tmp_path, monkeypatch):
         patch("avideo.stages.scriptwriter.call_structured", mock_cs),
         patch("avideo.stages.slides_auto.call_structured", mock_cs),
         patch("avideo.stages.slides_auto.SlideRenderer", mock_renderer_cls),
+        patch("avideo.stages.verify_slides.call_structured_with_images", side_effect=_fake_verify_factory()),
         patch("avideo.stages.voice_elevenlabs.synthesize_slide", side_effect=_fake_synthesize_slide_factory()),
         patch("avideo.stages.assemble.run_ffmpeg", side_effect=_fake_run_ffmpeg_factory()),
         patch("avideo.stages.assemble.probe_duration", side_effect=_fake_probe_duration),
@@ -519,6 +555,7 @@ def test_orch_resume_after_partial(tmp_path, monkeypatch):
         patch("avideo.stages.scriptwriter.call_structured", mock_cs),
         patch("avideo.stages.slides_auto.call_structured", mock_cs),
         patch("avideo.stages.slides_auto.SlideRenderer", mock_renderer_cls),
+        patch("avideo.stages.verify_slides.call_structured_with_images", side_effect=_fake_verify_factory()),
         patch("avideo.stages.voice_elevenlabs.synthesize_slide", side_effect=_fake_synthesize_slide_factory()),
         patch("avideo.stages.assemble.run_ffmpeg", side_effect=_fake_run_ffmpeg_factory()),
         patch("avideo.stages.assemble.probe_duration", side_effect=_fake_probe_duration),
@@ -556,6 +593,7 @@ def test_orch_level4_no_pause(tmp_path, monkeypatch):
         patch("avideo.stages.scriptwriter.call_structured", mock_cs),
         patch("avideo.stages.slides_auto.call_structured", mock_cs),
         patch("avideo.stages.slides_auto.SlideRenderer", mock_renderer_cls),
+        patch("avideo.stages.verify_slides.call_structured_with_images", side_effect=_fake_verify_factory()),
         patch("avideo.stages.voice_elevenlabs.synthesize_slide", side_effect=_fake_synthesize_slide_factory()),
         patch("avideo.stages.assemble.run_ffmpeg", side_effect=_fake_run_ffmpeg_factory()),
         patch("avideo.stages.assemble.probe_duration", side_effect=_fake_probe_duration),
@@ -583,6 +621,7 @@ def test_orch_level1_pauses_each_stage(tmp_path, monkeypatch):
         patch("avideo.stages.scriptwriter.call_structured", mock_cs),
         patch("avideo.stages.slides_auto.call_structured", mock_cs),
         patch("avideo.stages.slides_auto.SlideRenderer", mock_renderer_cls),
+        patch("avideo.stages.verify_slides.call_structured_with_images", side_effect=_fake_verify_factory()),
         patch("avideo.stages.voice_elevenlabs.synthesize_slide", side_effect=_fake_synthesize_slide_factory()),
         patch("avideo.stages.assemble.run_ffmpeg", side_effect=_fake_run_ffmpeg_factory()),
         patch("avideo.stages.assemble.probe_duration", side_effect=_fake_probe_duration),
@@ -612,13 +651,14 @@ def test_orch_level2_pauses_creative_stages(tmp_path, monkeypatch):
         patch("avideo.stages.scriptwriter.call_structured", mock_cs),
         patch("avideo.stages.slides_auto.call_structured", mock_cs),
         patch("avideo.stages.slides_auto.SlideRenderer", mock_renderer_cls),
+        patch("avideo.stages.verify_slides.call_structured_with_images", side_effect=_fake_verify_factory()),
         patch("avideo.stages.voice_elevenlabs.synthesize_slide", side_effect=_fake_synthesize_slide_factory()),
         patch("avideo.stages.assemble.run_ffmpeg", side_effect=_fake_run_ffmpeg_factory()),
         patch("avideo.stages.assemble.probe_duration", side_effect=_fake_probe_duration),
     ):
         run_pipeline(config)
 
-    # Creative stages: storyboard, scriptwriter, slides, verify
+    # Creative stages: storyboard, scriptwriter, slides, verify (auto mode: verify uses pre-run pause)
     assert mock_pause.call_count == 4, (
         f"Expected 4 pause calls for L2, got {mock_pause.call_count}"
     )
@@ -676,3 +716,248 @@ def test_orch_mark_done_not_called_on_exception(tmp_path, monkeypatch):
 
     wd = WorkdirManager(config.workdir)
     assert not wd.is_done("context"), "mark_done must not be called when run() raises"
+
+
+# ---------------------------------------------------------------------------
+# Verify-gate tests (VERIFY-03) — Wave-0 RED scaffold
+# ---------------------------------------------------------------------------
+
+def _make_hybrid_config(tmp_path: Path, level: int = 3, **kwargs):
+    """Build a hybrid-mode RunConfig for verify-gate tests."""
+    from avideo.models import RunConfig
+
+    bullets_file = tmp_path / "bullets.yaml"
+    if not bullets_file.exists():
+        bullets_file.write_text(
+            "title: Test\nbullets:\n  - Bullet 1\n  - Bullet 2\n",
+            encoding="utf-8",
+        )
+    defaults = dict(
+        bullets=bullets_file,
+        duration=120,
+        workdir=tmp_path / "workdir",
+        level=level,
+        slides_mode="hybrid",
+    )
+    defaults.update(kwargs)
+    return RunConfig(**defaults)
+
+
+def _pre_populate_hybrid_workdir(tmp_path: Path, workdir: Path, fail_slide: bool = False):
+    """Write all checkpoint data needed for a hybrid pipeline run through verify.
+
+    Returns the mock side_effect for call_structured_with_images so the test
+    can supply either an ok or fail verdict.
+    """
+    from avideo.models.context import ContextOutput
+    from avideo.models.script import ScriptOutput, SlideScript
+    from avideo.models.slides import SlidesOutput
+    from avideo.models.storyboard import SlideSpec, StoryboardOutput, VisualType
+    from avideo.models.timing import SlideTiming, TimingOutput
+    from avideo.models.verification import SlideVerdict
+    from avideo.utils.workdir import WorkdirManager
+
+    wd = WorkdirManager(workdir)
+
+    # Write all pre-verify checkpoints
+    context_out = ContextOutput(used=False)
+    storyboard_out = StoryboardOutput(
+        slides=[
+            SlideSpec(title="S1", bullets=["B1"], visual_type=VisualType.bullets),
+            SlideSpec(title="S2", bullets=["B2"], visual_type=VisualType.bullets),
+        ],
+        language="es",
+    )
+    timings_out = TimingOutput(
+        slides=[
+            SlideTiming(slide_index=0, seconds=60.0, word_budget=150),
+            SlideTiming(slide_index=1, seconds=60.0, word_budget=150),
+        ],
+        total_seconds=120.0,
+        wpm=150,
+    )
+    script_out = ScriptOutput(
+        slides=[
+            SlideScript(slide_index=0, narration="Narración diapositiva uno."),
+            SlideScript(slide_index=1, narration="Narración diapositiva dos."),
+        ],
+        language="es",
+    )
+
+    # Create real slide PNGs
+    png_paths = _make_slide_pngs(workdir, n=2)
+    slides_out = SlidesOutput(png_paths=png_paths, mode="hybrid")
+
+    wd.write_checkpoint("context", context_out)
+    wd.mark_done("context")
+    wd.write_checkpoint("storyboard", storyboard_out)
+    wd.mark_done("storyboard")
+    wd.write_checkpoint("timings", timings_out)
+    wd.mark_done("timing")
+    wd.write_checkpoint("script", script_out)
+    wd.mark_done("scriptwriter")
+    wd.write_checkpoint("slides", slides_out)
+    wd.mark_done("slides")
+
+    # Build the vision side_effect
+    if fail_slide:
+        verdicts = [
+            SlideVerdict(slide_index=0, status="fail", issues=["Missing title"]),
+            SlideVerdict(slide_index=1, status="fail", issues=["Wrong layout"]),
+        ]
+    else:
+        verdicts = [
+            SlideVerdict(slide_index=0, status="ok"),
+            SlideVerdict(slide_index=1, status="ok"),
+        ]
+
+    call_count = [0]
+    def _vision_side_effect(**kwargs):
+        idx = call_count[0]
+        call_count[0] += 1
+        return verdicts[min(idx, len(verdicts) - 1)]
+
+    return _vision_side_effect
+
+
+def test_orch_level3_verify_fail_exits(tmp_path):
+    """VERIFY-03 L3: run_pipeline with a fail verdict at level=3 raises typer.Exit(1)."""
+    import typer as typer_module
+
+    from avideo.orchestrator import run_pipeline
+
+    config = _make_hybrid_config(tmp_path, level=3)
+    vision_side_effect = _pre_populate_hybrid_workdir(tmp_path, config.workdir, fail_slide=True)
+    mock_cs = _mock_call_structured_for_pipeline(tmp_path)
+    mock_renderer_cls, _ = _mock_renderer_cls()
+
+    with (
+        patch("avideo.stages.storyboard.call_structured", mock_cs),
+        patch("avideo.stages.scriptwriter.call_structured", mock_cs),
+        patch("avideo.stages.slides_auto.call_structured", mock_cs),
+        patch("avideo.stages.slides_auto.SlideRenderer", mock_renderer_cls),
+        patch("avideo.stages.verify_slides.call_structured_with_images", side_effect=vision_side_effect),
+        patch("avideo.stages.voice_elevenlabs.synthesize_slide", side_effect=_fake_synthesize_slide_factory()),
+        patch("avideo.stages.assemble.run_ffmpeg", side_effect=_fake_run_ffmpeg_factory()),
+        patch("avideo.stages.assemble.probe_duration", side_effect=_fake_probe_duration),
+    ):
+        with pytest.raises(typer_module.Exit) as exc_info:
+            run_pipeline(config)
+
+    assert exc_info.value.exit_code == 1, (
+        f"Expected Exit(1) for L3 fail verdict, got exit_code={exc_info.value.exit_code}"
+    )
+
+
+def test_orch_level3_verify_ok_continues(tmp_path):
+    """VERIFY-03 L3: run_pipeline with all-ok verdicts at level=3 continues to completion."""
+    from avideo.orchestrator import run_pipeline
+    from avideo.utils.workdir import WorkdirManager
+
+    config = _make_hybrid_config(tmp_path, level=3)
+    vision_side_effect = _pre_populate_hybrid_workdir(tmp_path, config.workdir, fail_slide=False)
+    mock_cs = _mock_call_structured_for_pipeline(tmp_path)
+    mock_renderer_cls, _ = _mock_renderer_cls()
+
+    with (
+        patch("avideo.stages.storyboard.call_structured", mock_cs),
+        patch("avideo.stages.scriptwriter.call_structured", mock_cs),
+        patch("avideo.stages.slides_auto.call_structured", mock_cs),
+        patch("avideo.stages.slides_auto.SlideRenderer", mock_renderer_cls),
+        patch("avideo.stages.verify_slides.call_structured_with_images", side_effect=vision_side_effect),
+        patch("avideo.stages.voice_elevenlabs.synthesize_slide", side_effect=_fake_synthesize_slide_factory()),
+        patch("avideo.stages.assemble.run_ffmpeg", side_effect=_fake_run_ffmpeg_factory()),
+        patch("avideo.stages.assemble.probe_duration", side_effect=_fake_probe_duration),
+    ):
+        run_pipeline(config)  # Must NOT raise
+
+    wd = WorkdirManager(config.workdir)
+    assert wd.is_done("assemble"), "Pipeline must complete assembly when verify is all-ok at L3"
+
+
+def test_orch_level4_verify_fail_exits(tmp_path):
+    """VERIFY-03 L4: run_pipeline with a fail verdict at level=4 raises typer.Exit(1)."""
+    import typer as typer_module
+
+    from avideo.orchestrator import run_pipeline
+
+    config = _make_hybrid_config(tmp_path, level=4)
+    vision_side_effect = _pre_populate_hybrid_workdir(tmp_path, config.workdir, fail_slide=True)
+    mock_cs = _mock_call_structured_for_pipeline(tmp_path)
+    mock_renderer_cls, _ = _mock_renderer_cls()
+
+    with (
+        patch("avideo.stages.storyboard.call_structured", mock_cs),
+        patch("avideo.stages.scriptwriter.call_structured", mock_cs),
+        patch("avideo.stages.slides_auto.call_structured", mock_cs),
+        patch("avideo.stages.slides_auto.SlideRenderer", mock_renderer_cls),
+        patch("avideo.stages.verify_slides.call_structured_with_images", side_effect=vision_side_effect),
+        patch("avideo.stages.voice_elevenlabs.synthesize_slide", side_effect=_fake_synthesize_slide_factory()),
+        patch("avideo.stages.assemble.run_ffmpeg", side_effect=_fake_run_ffmpeg_factory()),
+        patch("avideo.stages.assemble.probe_duration", side_effect=_fake_probe_duration),
+    ):
+        with pytest.raises(typer_module.Exit) as exc_info:
+            run_pipeline(config)
+
+    assert exc_info.value.exit_code == 1, (
+        f"Expected Exit(1) for L4 fail verdict, got exit_code={exc_info.value.exit_code}"
+    )
+
+
+def test_orch_level4_verify_ok_continues(tmp_path):
+    """VERIFY-03 L4: run_pipeline with all-ok verdicts at level=4 continues to completion."""
+    from avideo.orchestrator import run_pipeline
+    from avideo.utils.workdir import WorkdirManager
+
+    config = _make_hybrid_config(tmp_path, level=4)
+    vision_side_effect = _pre_populate_hybrid_workdir(tmp_path, config.workdir, fail_slide=False)
+    mock_cs = _mock_call_structured_for_pipeline(tmp_path)
+    mock_renderer_cls, _ = _mock_renderer_cls()
+
+    with (
+        patch("avideo.stages.storyboard.call_structured", mock_cs),
+        patch("avideo.stages.scriptwriter.call_structured", mock_cs),
+        patch("avideo.stages.slides_auto.call_structured", mock_cs),
+        patch("avideo.stages.slides_auto.SlideRenderer", mock_renderer_cls),
+        patch("avideo.stages.verify_slides.call_structured_with_images", side_effect=vision_side_effect),
+        patch("avideo.stages.voice_elevenlabs.synthesize_slide", side_effect=_fake_synthesize_slide_factory()),
+        patch("avideo.stages.assemble.run_ffmpeg", side_effect=_fake_run_ffmpeg_factory()),
+        patch("avideo.stages.assemble.probe_duration", side_effect=_fake_probe_duration),
+    ):
+        run_pipeline(config)  # Must NOT raise
+
+    wd = WorkdirManager(config.workdir)
+    assert wd.is_done("assemble"), "Pipeline must complete assembly when verify is all-ok at L4"
+
+
+def test_orch_level2_verify_pauses(tmp_path, monkeypatch):
+    """VERIFY-03 L2: level=2 hybrid renders the verification report and pauses once for 'verify'."""
+    import avideo.orchestrator as orch_module
+
+    from avideo.orchestrator import run_pipeline
+
+    mock_pause = MagicMock()
+    monkeypatch.setattr(orch_module, "pause_for_approval", mock_pause)
+
+    config = _make_hybrid_config(tmp_path, level=2)
+    vision_side_effect = _pre_populate_hybrid_workdir(tmp_path, config.workdir, fail_slide=False)
+    mock_cs = _mock_call_structured_for_pipeline(tmp_path)
+    mock_renderer_cls, _ = _mock_renderer_cls()
+
+    with (
+        patch("avideo.stages.storyboard.call_structured", mock_cs),
+        patch("avideo.stages.scriptwriter.call_structured", mock_cs),
+        patch("avideo.stages.slides_auto.call_structured", mock_cs),
+        patch("avideo.stages.slides_auto.SlideRenderer", mock_renderer_cls),
+        patch("avideo.stages.verify_slides.call_structured_with_images", side_effect=vision_side_effect),
+        patch("avideo.stages.voice_elevenlabs.synthesize_slide", side_effect=_fake_synthesize_slide_factory()),
+        patch("avideo.stages.assemble.run_ffmpeg", side_effect=_fake_run_ffmpeg_factory()),
+        patch("avideo.stages.assemble.probe_duration", side_effect=_fake_probe_duration),
+    ):
+        run_pipeline(config)
+
+    # In hybrid mode, verify pre-run pause is suppressed; post-run iterate pause is called once.
+    verify_pauses = [c for c in mock_pause.call_args_list if c.args[0] == "verify"]
+    assert len(verify_pauses) == 1, (
+        f"Expected exactly 1 pause call for 'verify', got {len(verify_pauses)}: {verify_pauses}"
+    )
