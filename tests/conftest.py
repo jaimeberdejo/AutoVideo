@@ -96,3 +96,87 @@ def encrypted_pdf(tmp_path: Path) -> Path:
     )
     doc.close()
     return pdf_path
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 — slides rendering fixtures (lazy imports; deps added in 03-01 Task 1)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def fake_storyboard():
+    """Return a StoryboardOutput with one slide for EACH of the 7 VisualType values.
+
+    Covers every macro-dispatch path so plan 03-02 tests can assert that all
+    visual_type values render without KeyError.  Chart/comparison slides include
+    bullets with numbers/percentages to exercise the numeric-parsing path.
+    """
+    from avideo.models.storyboard import (  # noqa: PLC0415 — lazy
+        SlideSpec,
+        StoryboardOutput,
+        VisualType,
+    )
+
+    return StoryboardOutput(
+        language="es",
+        slides=[
+            SlideSpec(
+                title="Bienvenidos al pipeline de vídeo",
+                bullets=["Automatización completa", "Sin edición manual"],
+                visual_type=VisualType.title,
+            ),
+            SlideSpec(
+                title="Características principales",
+                bullets=[
+                    "Slides generadas automáticamente",
+                    "Voz en off sincronizada",
+                    "Subtítulos precisos",
+                ],
+                visual_type=VisualType.bullets,
+            ),
+            SlideSpec(
+                title="Crecimiento de adopción",
+                bullets=[
+                    "Ventas Q1: 40%",
+                    "Coste reducción: 25%",
+                    "Productividad +35%",
+                ],
+                visual_type=VisualType.chart,
+            ),
+            SlideSpec(
+                title="Flujo del pipeline",
+                bullets=[
+                    "Bullets → Storyboard",
+                    "Storyboard → Slides",
+                    "Slides + Voz → Vídeo",
+                ],
+                visual_type=VisualType.diagram,
+            ),
+            SlideSpec(
+                title="La automatización no reemplaza la creatividad",
+                bullets=[
+                    "Libera tiempo para pensar",
+                    "— Equipo de producto",
+                ],
+                visual_type=VisualType.quote,
+            ),
+            SlideSpec(
+                title="Antes vs. Después",
+                bullets=[
+                    "Manual: 4 horas por vídeo",
+                    "Automático: 10 minutos por vídeo",
+                    "Ahorro: 95%",
+                ],
+                visual_type=VisualType.comparison,
+            ),
+            SlideSpec(
+                title="Tecnologías utilizadas",
+                bullets=[
+                    "Playwright para render",
+                    "ElevenLabs para voz",
+                    "FFmpeg para montaje",
+                ],
+                visual_type=VisualType.image_icon,
+            ),
+        ],
+    )
