@@ -54,9 +54,9 @@ def test_runconfig_slides_mode_string_coercion(minimal_bullets: Path) -> None:
 
 def test_storyboard_output_roundtrip() -> None:
     """StoryboardOutput round-trips through model_dump_json/model_validate_json."""
-    from avideo.models import StoryboardOutput, SlideSpec
+    from avideo.models import StoryboardOutput, SlideSpec, VisualType
     sb = StoryboardOutput(
-        slides=[SlideSpec(title="Slide 1", bullets=["A", "B"], visual_type="text")],
+        slides=[SlideSpec(title="Slide 1", bullets=["A", "B"], visual_type=VisualType.bullets)],
         language="es",
     )
     reloaded = StoryboardOutput.model_validate_json(sb.model_dump_json())

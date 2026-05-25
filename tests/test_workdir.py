@@ -16,10 +16,10 @@ def test_workdir_creates_root_and_subdirs(tmp_workdir: Path) -> None:
 def test_write_and_read_checkpoint_roundtrip(tmp_workdir: Path) -> None:
     """write_checkpoint then read_checkpoint returns an equal model."""
     from avideo.utils.workdir import WorkdirManager
-    from avideo.models import StoryboardOutput, SlideSpec
+    from avideo.models import StoryboardOutput, SlideSpec, VisualType
     wm = WorkdirManager(tmp_workdir)
     sb = StoryboardOutput(
-        slides=[SlideSpec(title="T", bullets=["B"], visual_type="text")],
+        slides=[SlideSpec(title="T", bullets=["B"], visual_type=VisualType.bullets)],
         language="es",
     )
     wm.write_checkpoint("storyboard", sb)

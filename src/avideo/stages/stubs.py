@@ -77,7 +77,7 @@ class StoryboardStub(CheckpointMixin):
 
     def run(self, workdir: "WorkdirManager", config: "RunConfig") -> StoryboardOutput:
         return StoryboardOutput(
-            slides=[SlideSpec(title="Stub Slide", bullets=["Bullet 1"], visual_type="text")],
+            slides=[SlideSpec(title="Stub Slide", bullets=["Bullet 1"])],  # visual_type defaults to VisualType.bullets
             language=config.language,
         )
 
