@@ -54,6 +54,9 @@ from avideo.stages.align import AlignStage
 from avideo.stages.subtitles import SubtitlesStage
 from avideo.stages.voice import VoiceStage
 
+# Real Phase-5 stage implementation (replacing AssembleStub in PIPELINE_STAGES)
+from avideo.stages.assemble import AssembleStage
+
 if TYPE_CHECKING:
     from avideo.models import RunConfig
     from avideo.utils.workdir import WorkdirManager
@@ -290,5 +293,5 @@ PIPELINE_STAGES: list = [
     VoiceStage(),         # Phase 4: real TTS dispatcher (was VoiceStub) — stage_name='voice'
     AlignStage(),         # Phase 4: real alignment (was AlignStub) — stage_name='align'
     SubtitlesStage(),     # Phase 4: real subtitle gen (was SubsStub) — stage_name='subs'
-    AssembleStub(),       # Phase 5: placeholder
+    AssembleStage(),      # Phase 5: real (was AssembleStub) — stage_name='assemble'
 ]
