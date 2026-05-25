@@ -563,3 +563,160 @@ def test_smoke_dimensions(tmp_path, tiny_av_assets):
     assert abs(actual_duration - expected_dur) < 0.1, (
         f"Duration mismatch: expected ~{expected_dur:.3f}s, got {actual_duration:.3f}s"
     )
+
+
+# ---------------------------------------------------------------------------
+# Task 2 tests: QA sub-step wired into AssembleStage + PIPELINE_STAGES swap
+# ---------------------------------------------------------------------------
+
+
+def test_assemble_end_to_end_writes_qa_report(tmp_path, loudnorm_pass1_stderr):
+    """AssembleStage.run must write qa_report.json with QAReport attached to output.
+
+    Mocks run_ffmpeg (canned loudnorm stderr for pass-1) + probe_duration (fixed floats).
+    Creates placeholder slide/audio assets + slides.json/voice.json checkpoints.
+    Asserts output.mp4, qa_report.json written and QAReport has measured/normalized LUFS.
+    """
+    import types  # noqa: PLC0415 — already imported at module level but safe to re-import
+
+    from avideo.stages.assemble import AssembleStage  # noqa: PLC0415
+    from avideo.models.assembly import AssemblyOutput, QAReport  # noqa: PLC0415
+    from avideo.models.slides import SlidesOutput  # noqa: PLC0415
+    from avideo.models.voice import VoiceOutput  # noqa: PLC0415
+    from avideo.utils.workdir import WorkdirManager  # noqa: PLC0415
+    from avideo.models.config import RunConfig  # noqa: PLC0415
+
+    workdir = WorkdirManager(tmp_path / "workdir")
+
+    # Create placeholder PNG and audio files (just touch them — ffmpeg is mocked)
+    slide_path = workdir.root / "slides" / "slide_00.png"
+    slide_path.write_bytes(b"\x89PNG\r\n\x1a\n")  # PNG magic bytes
+    audio_path = workdir.root / "audio" / "audio_00.mp3"
+    audio_path.write_bytes(b"\xff\xe3")  # minimal mp3 magic
+
+    # Write slides.json checkpoint
+    slides_out = SlidesOutput(
+        png_paths=[str(slide_path)],
+        mode="auto",
+    )
+    workdir.write_checkpoint("slides", slides_out)
+
+    # Write voice.json checkpoint
+    voice_out = VoiceOutput(
+        audio_paths=[str(audio_path)],
+        voice_mode="elevenlabs",
+    )
+    workdir.write_checkpoint("voice", voice_out)
+
+    # Minimal config (duration=10 as target)
+    bullets = tmp_path / "bullets.yaml"
+    bullets.write_text("title: T\nbullets:\n  - B\n", encoding="utf-8")
+    config = RunConfig(bullets=bullets, duration=10, workdir=workdir.root)
+
+    # Fake pass-1 proc (loudnorm JSON in stderr) — used for both pass-1 measure and probe
+    pass1_proc = types.SimpleNamespace(
+        returncode=0,
+        stdout="",
+        stderr=loudnorm_pass1_stderr,
+    )
+    # Fake pass-2 proc (stdout empty, stderr minimal for pass-2 output_i)
+    pass2_proc = types.SimpleNamespace(
+        returncode=0,
+        stdout="",
+        stderr=(
+            '{\n'
+            '    "input_i" : "-16.09",\n'
+            '    "input_tp" : "-1.50",\n'
+            '    "input_lra" : "0.50",\n'
+            '    "input_thresh" : "-26.09",\n'
+            '    "output_i" : "-16.01",\n'
+            '    "output_tp" : "-1.50",\n'
+            '    "output_lra" : "0.50",\n'
+            '    "output_thresh" : "-26.01",\n'
+            '    "normalization_type" : "linear",\n'
+            '    "target_offset" : "0.09"\n'
+            '}\n'
+        ),
+    )
+
+    call_count = [0]
+
+    def fake_run_ffmpeg(args):
+        count = call_count[0]
+        call_count[0] += 1
+        # call 0: main assembly encode → create fake output.mp4
+        if count == 0:
+            # The first call produces output.mp4.tmp; we simulate it by writing the tmp file
+            # Find the output path argument (last arg)
+            out_arg = args[-1]
+            Path(out_arg).write_bytes(b"fake mp4")
+            return types.SimpleNamespace(returncode=0, stdout="", stderr="")
+        # call 1: loudnorm pass-1 (measure)
+        elif count == 1:
+            return pass1_proc
+        # call 2: loudnorm pass-2 (apply) → create normalized tmp
+        elif count == 2:
+            out_arg = args[-1]
+            Path(out_arg).write_bytes(b"fake normalized mp4")
+            return pass2_proc
+        return types.SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    def fake_probe_duration(path):
+        # Return 10.5 for the final output.mp4 (target=10 → deviation=0.5)
+        return 10.5
+
+    with patch("avideo.integrations.ffmpeg.subprocess.run") as mock_subproc, \
+         patch("avideo.stages.assemble.run_ffmpeg", side_effect=fake_run_ffmpeg), \
+         patch("avideo.stages.assemble.probe_duration", side_effect=fake_probe_duration):
+        # subprocess.run is also patched so the probe_duration_args calls succeed
+        mock_subproc.return_value = types.SimpleNamespace(
+            returncode=0,
+            stdout=json.dumps({"format": {"duration": "10.5"}}),
+            stderr="",
+        )
+        result = AssembleStage().run(workdir, config)
+
+    # output.mp4 must exist
+    assert (workdir.root / "output.mp4").exists(), "output.mp4 must be written"
+
+    # qa_report.json must exist
+    qa_json_path = workdir.root / "qa_report.json"
+    assert qa_json_path.exists(), "qa_report.json must be written"
+
+    # qa_report.json must be valid JSON with QAReport shape
+    qa_data = json.loads(qa_json_path.read_text())
+    assert "duration_deviation" in qa_data
+    assert "measured_lufs" in qa_data
+    assert "normalized_lufs" in qa_data
+
+    # AssemblyOutput.qa must be attached
+    assert isinstance(result, AssemblyOutput)
+    assert result.qa is not None, "AssemblyOutput.qa must be populated"
+    assert isinstance(result.qa, QAReport)
+    assert result.qa.measured_lufs is not None
+    assert result.qa.normalized_lufs is not None
+
+
+def test_pipeline_stages_has_assemble_stage():
+    """PIPELINE_STAGES last entry must be AssembleStage with correct stage_name + checkpoint."""
+    from avideo.stages.stubs import PIPELINE_STAGES  # noqa: PLC0415
+    from avideo.stages.assemble import AssembleStage  # noqa: PLC0415
+
+    last_stage = PIPELINE_STAGES[-1]
+    assert isinstance(last_stage, AssembleStage), (
+        f"PIPELINE_STAGES last entry must be AssembleStage, got {type(last_stage).__name__}"
+    )
+    assert last_stage.stage_name == "assemble", (
+        f"stage_name must be 'assemble', got '{last_stage.stage_name}'"
+    )
+    assert last_stage.checkpoint_name == "assembly", (
+        f"checkpoint_name must be 'assembly', got '{last_stage.checkpoint_name}'"
+    )
+
+
+def test_assemble_stub_class_still_exists():
+    """AssembleStub class must still be importable (tests import it directly)."""
+    from avideo.stages.stubs import AssembleStub  # noqa: PLC0415
+
+    assert hasattr(AssembleStub, "stage_name")
+    assert AssembleStub.stage_name == "assemble"
