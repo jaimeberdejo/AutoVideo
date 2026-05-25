@@ -29,3 +29,70 @@ def minimal_config(tmp_path: Path) -> Path:
         encoding="utf-8",
     )
     return cfg
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 — context ingestion fixtures (lazy imports to avoid import errors
+# before 'uv add anthropic PyMuPDF python-pptx' is run in Task 1)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def sample_md(tmp_path: Path) -> Path:
+    """Write a Markdown file with known text and return its Path."""
+    md = tmp_path / "context.md"
+    md.write_text(
+        "# Test Context\n\nThis is the MD context text for unit tests.\n",
+        encoding="utf-8",
+    )
+    return md
+
+
+@pytest.fixture
+def sample_pdf(tmp_path: Path) -> Path:
+    """Build a 1-page PDF with known text using fitz (PyMuPDF) and return its Path."""
+    import fitz  # noqa: PLC0415 — lazy import; PyMuPDF installed in Task 1
+
+    pdf_path = tmp_path / "context.pdf"
+    doc = fitz.open()
+    page = doc.new_page()
+    page.insert_text((72, 72), "PDF context text for unit tests.")
+    doc.save(str(pdf_path))
+    doc.close()
+    return pdf_path
+
+
+@pytest.fixture
+def sample_pptx(tmp_path: Path) -> Path:
+    """Build a 1-slide .pptx with known text using python-pptx and return its Path."""
+    from pptx import Presentation  # noqa: PLC0415 — lazy import; python-pptx installed in Task 1
+    from pptx.util import Inches, Pt  # noqa: PLC0415
+
+    pptx_path = tmp_path / "context.pptx"
+    prs = Presentation()
+    blank_layout = prs.slide_layouts[6]  # blank layout
+    slide = prs.slides.add_slide(blank_layout)
+    txBox = slide.shapes.add_textbox(Inches(1), Inches(1), Inches(6), Inches(2))
+    tf = txBox.text_frame
+    tf.text = "PPTX context text for unit tests."
+    prs.save(str(pptx_path))
+    return pptx_path
+
+
+@pytest.fixture
+def encrypted_pdf(tmp_path: Path) -> Path:
+    """Build a password-protected PDF using fitz and return its Path."""
+    import fitz  # noqa: PLC0415 — lazy import; PyMuPDF installed in Task 1
+
+    pdf_path = tmp_path / "encrypted.pdf"
+    doc = fitz.open()
+    page = doc.new_page()
+    page.insert_text((72, 72), "Secret content.")
+    doc.save(
+        str(pdf_path),
+        encryption=fitz.PDF_ENCRYPT_AES_256,
+        owner_pw="owner",
+        user_pw="user",
+    )
+    doc.close()
+    return pdf_path
