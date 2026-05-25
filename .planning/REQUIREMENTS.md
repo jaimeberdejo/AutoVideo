@@ -128,17 +128,63 @@ Excluido explícitamente. Documentado para evitar scope creep.
 
 ## Traceability
 
-Qué fases cubren qué requisitos. Se rellena durante la creación del roadmap.
+Qué fases cubren qué requisitos.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (pendiente de mapear por el roadmapper) | — | Pending |
+| CLI-01 | Phase 1 | Pending |
+| CLI-02 | Phase 1 | Pending |
+| CLI-03 | Phase 1 | Pending |
+| CLI-04 | Phase 1 | Pending |
+| CLI-05 | Phase 1 | Pending |
+| CLI-06 | Phase 1 | Pending |
+| CLI-07 | Phase 1 | Pending |
+| CLI-08 | Phase 1 | Pending |
+| ORCH-01 | Phase 1 | Pending |
+| ORCH-02 | Phase 1 | Pending |
+| ORCH-03 | Phase 1 | Pending |
+| ORCH-04 | Phase 1 | Pending |
+| ORCH-05 | Phase 1 | Pending |
+| CTX-01 | Phase 2 | Pending |
+| CTX-02 | Phase 2 | Pending |
+| STORY-01 | Phase 2 | Pending |
+| STORY-02 | Phase 2 | Pending |
+| TIME-01 | Phase 2 | Pending |
+| TIME-02 | Phase 2 | Pending |
+| SCRIPT-01 | Phase 2 | Pending |
+| SCRIPT-02 | Phase 2 | Pending |
+| SLIDE-01 | Phase 3 | Pending |
+| SLIDE-02 | Phase 3 | Pending |
+| SLIDE-03 | Phase 3 | Pending |
+| VOICE-01 | Phase 4 | Pending |
+| VOICE-02 | Phase 4 | Pending |
+| VOICE-03 | Phase 4 | Pending |
+| ALIGN-01 | Phase 4 | Pending |
+| ALIGN-02 | Phase 4 | Pending |
+| SUB-01 | Phase 4 | Pending |
+| SUB-02 | Phase 4 | Pending |
+| ASMB-01 | Phase 5 | Pending |
+| ASMB-02 | Phase 5 | Pending |
+| ASMB-03 | Phase 5 | Pending |
+| QA-01 | Phase 5 | Pending |
+| QA-02 | Phase 5 | Pending |
+| SLIDE-04 | Phase 6 | Pending |
+| SLIDE-05 | Phase 6 | Pending |
+| VERIFY-01 | Phase 6 | Pending |
+| VERIFY-02 | Phase 6 | Pending |
+| VERIFY-03 | Phase 6 | Pending |
+| PKG-01 | Phase 7 | Pending |
+| PKG-02 | Phase 7 | Pending |
+| TEST-01 | Phase 7 | Pending |
+| TEST-02 | Phase 7 | Pending |
+| TEST-03 | Phase 7 | Pending |
+| DOC-01 | Phase 7 | Pending |
 
 **Coverage:**
 - v1 requirements: 49 total
-- Mapped to phases: 0 (pendiente)
-- Unmapped: 49 ⚠️
+- Mapped to phases: 49
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-05-25*
-*Last updated: 2026-05-25 after initial definition*
+*Last updated: 2026-05-25 after roadmap creation*
