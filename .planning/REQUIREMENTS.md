@@ -48,9 +48,9 @@ Requisitos del release inicial. Cada uno se mapea a fases del roadmap.
 
 ### SLIDE — Diseño y generación de slides
 
-- [ ] **SLIDE-01**: En modo `auto`, cada slide del storyboard se renderiza a PNG 1920×1080 desde HTML (Jinja2 + `theme.yaml`) con Playwright
-- [ ] **SLIDE-02**: Las slides usan solo iconos SVG (Lucide/Heroicons) y gráficos/diagramas generados por código (sin imágenes IA ni stock)
-- [ ] **SLIDE-03**: El tema (paleta, tipografías, espaciado) se parametriza en `theme.yaml` y lo propone la IA
+- [x] **SLIDE-01**: En modo `auto`, cada slide del storyboard se renderiza a PNG 1920×1080 desde HTML (Jinja2 + `theme.yaml`) con Playwright
+- [x] **SLIDE-02**: Las slides usan solo iconos SVG (Lucide/Heroicons) y gráficos/diagramas generados por código (sin imágenes IA ni stock)
+- [x] **SLIDE-03**: El tema (paleta, tipografías, espaciado) se parametriza en `theme.yaml` y lo propone la IA
 - [ ] **SLIDE-04**: En modo `hybrid`, el sistema genera una propuesta de diseño por slide (brief + mockup opcional) en `workdir/design_proposal/`
 - [ ] **SLIDE-05**: En modos `hybrid`/`manual`, el usuario aporta slides en `workdir/slides_user/slide_XX.{png|pdf|pptx}` y el sistema las ingiere (rasterizando si vienen en .pptx/.pdf)
 
@@ -153,9 +153,9 @@ Qué fases cubren qué requisitos.
 | TIME-02 | Phase 2 | Complete |
 | SCRIPT-01 | Phase 2 | Complete |
 | SCRIPT-02 | Phase 2 | Complete |
-| SLIDE-01 | Phase 3 | Pending |
-| SLIDE-02 | Phase 3 | Pending |
-| SLIDE-03 | Phase 3 | Pending |
+| SLIDE-01 | Phase 3 | Complete |
+| SLIDE-02 | Phase 3 | Complete |
+| SLIDE-03 | Phase 3 | Complete |
 | VOICE-01 | Phase 4 | Pending |
 | VOICE-02 | Phase 4 | Pending |
 | VOICE-03 | Phase 4 | Pending |

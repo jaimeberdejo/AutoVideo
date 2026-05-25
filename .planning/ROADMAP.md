@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation** - Orquestador secuencial + CLI typer + modelos Pydantic + WorkdirManager + niveles L1-L4 (pipeline end-to-end con stubs) (completed 2026-05-25)
 - [x] **Phase 2: LLM Pipeline** - Ingesta de contexto + Storyboard (Claude) + Director de timing + Guionista (Claude) (completed 2026-05-25)
-- [ ] **Phase 3: Slides Auto** - Jinja2 + Playwright → PNG 1920×1080 + theme.yaml + iconos SVG offline (modo `auto`)
+- [x] **Phase 3: Slides Auto** - Jinja2 + Playwright → PNG 1920×1080 + theme.yaml + iconos SVG offline (modo `auto`) (completed 2026-05-25)
 - [ ] **Phase 4: Voz + Subtítulos** - ElevenLabs TTS con timestamps + modo record + WhisperX (alineación) + SRT/VTT
 - [ ] **Phase 5: Montaje + QA** - FFmpeg concat + crossfade + loudnorm + quemado de subtítulos + informe QA
 - [ ] **Phase 6: Slides Hybrid/Manual + Verificador** - Propuesta de diseño + ingesta de slides del usuario + verificador Claude Vision
@@ -66,8 +66,8 @@ Plans:
 **Plans**: TBD
 
 Plans:
-- [ ] 03-01: integrations/playwright.py (sync_playwright, wait_for_function fonts.ready, animations=disabled) + template HTML base (Jinja2) + theme.yaml
-- [ ] 03-02: stages/slides_auto.py (Jinja2 → HTML → Playwright → PNG por slide; iconos Lucide offline) + test de smoke de render
+- [x] 03-01: integrations/playwright.py (sync_playwright, wait_for_function fonts.ready, animations=disabled) + template HTML base (Jinja2) + theme.yaml
+- [x] 03-02: stages/slides_auto.py (Jinja2 → HTML → Playwright → PNG por slide; iconos Lucide offline) + test de smoke de render
 
 ### Phase 4: Voz + Subtítulos
 **Goal**: El pipeline genera audio sincronizado por slide (ElevenLabs con timestamps o grabación del usuario) y produce subtítulos `.srt`/`.vtt` listos para el montaje
@@ -140,7 +140,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete    | 2026-05-25 |
 | 2. LLM Pipeline | 3/3 | Complete    | 2026-05-25 |
-| 3. Slides Auto | 0/2 | Not started | - |
+| 3. Slides Auto | 2/2 | Complete    | 2026-05-25 |
 | 4. Voz + Subtítulos | 0/3 | Not started | - |
 | 5. Montaje + QA | 0/2 | Not started | - |
 | 6. Slides Hybrid/Manual + Verificador | 0/2 | Not started | - |
