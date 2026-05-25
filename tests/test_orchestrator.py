@@ -8,12 +8,79 @@ Task 2 tests (orchestrator loop): tests prefixed with test_orch_ — run with:
 """
 from __future__ import annotations
 
+import json
 import sys
+import types
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, call, patch
 
 import pytest
+
+# ---------------------------------------------------------------------------
+# Helpers for patching AssembleStage ffmpeg calls (Phase 5 swap)
+# ---------------------------------------------------------------------------
+
+_CANNED_LOUDNORM_PASS1 = (
+    "ffmpeg version 8.0.1\n"
+    "{\n"
+    '    "input_i" : "-22.01",\n'
+    '    "input_tp" : "-20.91",\n'
+    '    "input_lra" : "0.70",\n'
+    '    "input_thresh" : "-32.01",\n'
+    '    "output_i" : "-15.74",\n'
+    '    "output_tp" : "-14.60",\n'
+    '    "output_lra" : "0.50",\n'
+    '    "output_thresh" : "-25.74",\n'
+    '    "normalization_type" : "dynamic",\n'
+    '    "target_offset" : "-0.26"\n'
+    "}\n"
+)
+
+_CANNED_LOUDNORM_PASS2 = (
+    "{\n"
+    '    "input_i" : "-16.09",\n'
+    '    "input_tp" : "-1.50",\n'
+    '    "input_lra" : "0.50",\n'
+    '    "input_thresh" : "-26.09",\n'
+    '    "output_i" : "-16.01",\n'
+    '    "output_tp" : "-1.50",\n'
+    '    "output_lra" : "0.50",\n'
+    '    "output_thresh" : "-26.01",\n'
+    '    "normalization_type" : "linear",\n'
+    '    "target_offset" : "0.09"\n'
+    "}\n"
+)
+
+
+def _fake_run_ffmpeg_factory():
+    """Return a run_ffmpeg side_effect that creates output files without real ffmpeg.
+
+    Call order: 0=assembly encode, 1=loudnorm pass-1 (measure), 2=loudnorm pass-2 (apply).
+    """
+    call_count = [0]
+
+    def _fake(args):
+        idx = call_count[0]
+        call_count[0] += 1
+        if idx == 0:  # assembly encode → create output.mp4.tmp
+            out = Path(args[-1])
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_bytes(b"fake mp4")
+            return types.SimpleNamespace(returncode=0, stdout="", stderr="")
+        elif idx == 1:  # loudnorm pass-1 → return canned stderr
+            return types.SimpleNamespace(returncode=0, stdout="", stderr=_CANNED_LOUDNORM_PASS1)
+        else:  # loudnorm pass-2 → create output.mp4.norm.tmp
+            out = Path(args[-1])
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_bytes(b"fake normalised mp4")
+            return types.SimpleNamespace(returncode=0, stdout="", stderr=_CANNED_LOUDNORM_PASS2)
+
+    return _fake
+
+
+def _fake_probe_duration(_path: str) -> float:
+    return 5.0
 
 # ---------------------------------------------------------------------------
 # Task 1 — Stage protocol, stubs, PIPELINE_STAGES
@@ -142,6 +209,8 @@ def test_stub_run_returns_pydantic_basemodel(tmp_path):
         patch("avideo.stages.slides_auto.call_structured", mock_cs),
         patch("avideo.stages.slides_auto.SlideRenderer", mock_renderer_cls),
         patch("avideo.stages.voice_elevenlabs.synthesize_slide", return_value=fake_slide_timings),
+        patch("avideo.stages.assemble.run_ffmpeg", side_effect=_fake_run_ffmpeg_factory()),
+        patch("avideo.stages.assemble.probe_duration", side_effect=_fake_probe_duration),
     ):
         for stage in PIPELINE_STAGES:
             result = stage.run(workdir, config)
@@ -347,6 +416,8 @@ def test_orch_full_run_all_stages_done(tmp_path):
         patch("avideo.stages.slides_auto.call_structured", mock_cs),
         patch("avideo.stages.slides_auto.SlideRenderer", mock_renderer_cls),
         patch("avideo.stages.voice_elevenlabs.synthesize_slide", side_effect=_fake_synthesize_slide_factory()),
+        patch("avideo.stages.assemble.run_ffmpeg", side_effect=_fake_run_ffmpeg_factory()),
+        patch("avideo.stages.assemble.probe_duration", side_effect=_fake_probe_duration),
     ):
         run_pipeline(config)
 
@@ -376,6 +447,8 @@ def test_orch_idempotent_second_run(tmp_path, monkeypatch):
         patch("avideo.stages.slides_auto.call_structured", mock_cs),
         patch("avideo.stages.slides_auto.SlideRenderer", mock_renderer_cls),
         patch("avideo.stages.voice_elevenlabs.synthesize_slide", side_effect=_fake_synthesize_slide_factory()),
+        patch("avideo.stages.assemble.run_ffmpeg", side_effect=_fake_run_ffmpeg_factory()),
+        patch("avideo.stages.assemble.probe_duration", side_effect=_fake_probe_duration),
     ):
         run_pipeline(config)
 
@@ -447,6 +520,8 @@ def test_orch_resume_after_partial(tmp_path, monkeypatch):
         patch("avideo.stages.slides_auto.call_structured", mock_cs),
         patch("avideo.stages.slides_auto.SlideRenderer", mock_renderer_cls),
         patch("avideo.stages.voice_elevenlabs.synthesize_slide", side_effect=_fake_synthesize_slide_factory()),
+        patch("avideo.stages.assemble.run_ffmpeg", side_effect=_fake_run_ffmpeg_factory()),
+        patch("avideo.stages.assemble.probe_duration", side_effect=_fake_probe_duration),
     ):
         run_pipeline(config)
 
@@ -482,6 +557,8 @@ def test_orch_level4_no_pause(tmp_path, monkeypatch):
         patch("avideo.stages.slides_auto.call_structured", mock_cs),
         patch("avideo.stages.slides_auto.SlideRenderer", mock_renderer_cls),
         patch("avideo.stages.voice_elevenlabs.synthesize_slide", side_effect=_fake_synthesize_slide_factory()),
+        patch("avideo.stages.assemble.run_ffmpeg", side_effect=_fake_run_ffmpeg_factory()),
+        patch("avideo.stages.assemble.probe_duration", side_effect=_fake_probe_duration),
     ):
         run_pipeline(config)
 
@@ -507,6 +584,8 @@ def test_orch_level1_pauses_each_stage(tmp_path, monkeypatch):
         patch("avideo.stages.slides_auto.call_structured", mock_cs),
         patch("avideo.stages.slides_auto.SlideRenderer", mock_renderer_cls),
         patch("avideo.stages.voice_elevenlabs.synthesize_slide", side_effect=_fake_synthesize_slide_factory()),
+        patch("avideo.stages.assemble.run_ffmpeg", side_effect=_fake_run_ffmpeg_factory()),
+        patch("avideo.stages.assemble.probe_duration", side_effect=_fake_probe_duration),
     ):
         run_pipeline(config)
 
@@ -534,6 +613,8 @@ def test_orch_level2_pauses_creative_stages(tmp_path, monkeypatch):
         patch("avideo.stages.slides_auto.call_structured", mock_cs),
         patch("avideo.stages.slides_auto.SlideRenderer", mock_renderer_cls),
         patch("avideo.stages.voice_elevenlabs.synthesize_slide", side_effect=_fake_synthesize_slide_factory()),
+        patch("avideo.stages.assemble.run_ffmpeg", side_effect=_fake_run_ffmpeg_factory()),
+        patch("avideo.stages.assemble.probe_duration", side_effect=_fake_probe_duration),
     ):
         run_pipeline(config)
 
