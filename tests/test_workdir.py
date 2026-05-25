@@ -69,6 +69,22 @@ def test_interrupted_write_leaves_no_partial_file(tmp_workdir: Path, monkeypatch
     assert wm.is_done("context") is False, "done marker must not exist after interrupted write"
 
 
+def test_failed_replace_cleans_up_tmp_file(tmp_workdir: Path, monkeypatch) -> None:
+    """WR-06: if os.replace fails, the .json.tmp file is removed so no stale tmp accumulates."""
+    from avideo.utils.workdir import WorkdirManager
+    from avideo.models import ContextOutput
+
+    def failing_replace(src, dst):
+        raise OSError("Simulated replace failure")
+
+    monkeypatch.setattr(os, "replace", failing_replace)
+    wm = WorkdirManager(tmp_workdir)
+    with pytest.raises(OSError):
+        wm.write_checkpoint("context", ContextOutput())
+    tmp_file = wm.checkpoint_path("context").with_suffix(".json.tmp")
+    assert not tmp_file.exists(), ".json.tmp must be cleaned up after a failed os.replace"
+
+
 def test_mark_done_independent_of_write_checkpoint(tmp_workdir: Path) -> None:
     """mark_done only flips is_done; write_checkpoint is independent."""
     from avideo.utils.workdir import WorkdirManager

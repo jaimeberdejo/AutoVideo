@@ -95,8 +95,9 @@ class WorkdirManager:
 
         Writes first to a ``.json.tmp`` file in the same directory (same
         filesystem), then calls ``os.replace`` to atomically rename it to
-        the final target.  If ``os.replace`` raises, no target file exists
-        and no done marker is left.
+        the final target.  On any ``OSError`` (failed write or failed replace),
+        the ``.json.tmp`` file is removed so no stale tmp files accumulate
+        across retries or resumes.  The target JSON is never partially written.
 
         Args:
             name: Checkpoint name, e.g. ``"storyboard"``.
@@ -107,8 +108,12 @@ class WorkdirManager:
         """
         target = self.checkpoint_path(name)
         tmp = target.with_suffix(".json.tmp")
-        tmp.write_text(model.model_dump_json(indent=2), encoding="utf-8")
-        os.replace(str(tmp), str(target))
+        try:
+            tmp.write_text(model.model_dump_json(indent=2), encoding="utf-8")
+            os.replace(str(tmp), str(target))
+        except OSError:
+            tmp.unlink(missing_ok=True)
+            raise
 
     def read_checkpoint(self, name: str, model_class: type[BaseModel]) -> BaseModel:
         """Read and deserialise a JSON checkpoint into a Pydantic model.
