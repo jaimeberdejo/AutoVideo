@@ -435,12 +435,14 @@ def parse_loudnorm_json(stderr: str) -> dict[str, float]:
     if not blocks:
         raise ValueError("No loudnorm JSON block found in ffmpeg stderr")
     raw = json.loads(blocks[-1])
+    measured_i = float(raw["input_i"])
     return {
-        "measured_I": float(raw["input_i"]),
+        "measured_I": measured_i,
         "measured_TP": float(raw["input_tp"]),
         "measured_LRA": float(raw["input_lra"]),
         "measured_thresh": float(raw["input_thresh"]),
         "offset": float(raw["target_offset"]),
+        "input_i": measured_i,  # convenience alias for measured_lufs in QA sub-step
     }
 
 
