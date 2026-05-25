@@ -32,12 +32,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. El usuario puede ejecutar con `--level 1` y el pipeline pausa tras cada etapa para pedir aprobación; con `--level 4` nunca pausa
   4. El usuario puede ejecutar `--dry-run` y recibe una estimación de coste/tokens sin generar audio ni vídeo
   5. La configuración se carga de `config.yaml` y los flags de CLI la sobreescriben; errores de validación Pydantic se muestran con mensaje claro
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 01-01: Modelos Pydantic (RunConfig, contratos I/O de todas las etapas) + WorkdirManager
-- [ ] 01-02: CLI typer (`generate` con todos los flags) + carga de config.yaml + validación RunConfig
-- [ ] 01-03: Orquestador secuencial (loop de etapas, checkpoints atómicos, done markers, approval gates L1-L4) + RichUI básico + --dry-run skeleton
+- [ ] 01-01-PLAN.md — Bootstrap uv/Python 3.11 + modelos Pydantic (RunConfig + contratos I/O de todas las etapas) + WorkdirManager (escritura atómica os.replace, done markers)
+- [ ] 01-02-PLAN.md — CLI typer (`generate` con los 9 flags) + merge config.yaml (CLI>YAML>default) + ValidationError→tabla Rich + setup_logging
+- [ ] 01-03-PLAN.md — Orquestador secuencial (StageProtocol/CheckpointMixin, 10 stubs, skip-done, approval gates L1-L4) + cost_estimator --dry-run + RichUI pause/progress + checkpoint de aceptación
 
 ### Phase 2: LLM Pipeline
 **Goal**: A partir de bullets y duración el sistema genera un storyboard estructurado, calcula la distribución de tiempo por slide con presupuesto de palabras, y produce el guion completo calibrado — todo persistido como JSON validado con Pydantic
