@@ -18,6 +18,29 @@ dependencies = [
     "playwright>=1.60.0",
     "jinja2>=3.1.6",
     "python-lucide>=0.2.24",
+    "elevenlabs>=2.49.0",
+]
+
+# Optional extra for the 'record' voice mode (sounddevice/soundfile/whisperx + torch).
+# IMPORTANT: torch is pinned to 2.5.1 in production because torch>=2.6 changes
+# weights_only=True by default in torch.load, breaking pyannote VAD model loading in
+# whisperx (see 04-RESEARCH.md Pitfall 2).  For local production installs, use:
+#   pip install torch==2.5.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+#   pip install "avideo[record]"
+# Install with: uv sync --extra record  (requires torch pre-installed)
+# NOTE: do NOT add these to [project.dependencies] — avoids ~2GB torch in the default
+# elevenlabs path and CI.
+[project.optional-dependencies]
+record = [
+    "sounddevice>=0.5.5",
+    "soundfile>=0.13.1",
+    "whisperx>=3.8.5",
+    # torch==2.5.1 and torchaudio==2.5.1 MUST be installed BEFORE whisperx.
+    # They are NOT listed here because whisperx's own metadata specifies torchaudio>=2.8
+    # for Python 3.12, creating an unsolvable constraint when pip resolves the entire extra
+    # together.  Install torch first manually:
+    #   pip install torch==2.5.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+    # See 04-RESEARCH.md Pitfall 2 for why torch==2.5.1 is the required pin.
 ]
 
 [project.scripts]

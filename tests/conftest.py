@@ -1,4 +1,6 @@
 """Shared pytest fixtures for avideo test suite."""
+import base64
+import types
 import pytest
 from pathlib import Path
 
@@ -96,6 +98,69 @@ def encrypted_pdf(tmp_path: Path) -> Path:
     )
     doc.close()
     return pdf_path
+
+
+# ---------------------------------------------------------------------------
+# Phase 4 — voice / alignment fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def fake_elevenlabs_response():
+    """Return a minimal ElevenLabs convert_with_timestamps response object.
+
+    Attributes mirror CharacterAlignmentResponseModel in elevenlabs SDK 2.x
+    (character_start_times_seconds / character_end_times_seconds in SECONDS —
+    NOT the obsolete _ms fields of SDK 1.x).
+
+    The timestamps are strictly increasing so the default behaviour is success.
+    Characters cover "hola mundo" (10 chars incl. space).
+    """
+    alignment = types.SimpleNamespace(
+        characters=["h", "o", "l", "a", " ", "m", "u", "n", "d", "o"],
+        character_start_times_seconds=[0.00, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45],
+        character_end_times_seconds=[0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50],
+    )
+    # A few bytes of valid base64-encoded content (not a real mp3, but decodeable)
+    audio_bytes = b"\xff\xe3\x10\x00"  # minimal mp3-like header bytes
+    return types.SimpleNamespace(
+        audio_base64=base64.b64encode(audio_bytes).decode("utf-8"),
+        alignment=alignment,
+    )
+
+
+@pytest.fixture
+def fake_word_segments():
+    """Return minimal whisperx-style word_segments list for 'hola mundo'.
+
+    Used by plan 04-02 (align stage) tests.  start/end are SECONDS relative to
+    the beginning of the slide clip.
+    """
+    return [
+        {"word": "hola", "start": 0.0, "end": 0.4},
+        {"word": "mundo", "start": 0.5, "end": 0.9},
+    ]
+
+
+@pytest.fixture
+def voice_config(tmp_path: Path):
+    """Return a minimal RunConfig for voice tests using tmp_path as workdir.
+
+    Mirrors the _build_config pattern used in test_storyboard.py.
+    Sets voice=elevenlabs, voice_id to a test placeholder, and points the
+    workdir at a tmp_path subdirectory.
+    """
+    from avideo.models.config import RunConfig, VoiceMode  # noqa: PLC0415 — lazy
+
+    bullets = tmp_path / "bullets.yaml"
+    bullets.write_text("title: Test\nbullets:\n  - Point 1\n", encoding="utf-8")
+    return RunConfig(
+        bullets=bullets,
+        duration=60,
+        voice=VoiceMode.elevenlabs,
+        voice_id="test-voice-id",
+        workdir=tmp_path / "workdir",
+    )
 
 
 # ---------------------------------------------------------------------------
