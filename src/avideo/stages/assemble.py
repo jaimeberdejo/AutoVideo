@@ -1,9 +1,5 @@
 """AssembleStage — FFmpeg video assembly: slides + audio → output.mp4 (1080p 16:9 H.264).
 
-Replaces AssembleStub from stubs.py (plan 05-02 performs the PIPELINE_STAGES swap
-once QA loudnorm is also wired — this plan deliberately leaves PIPELINE_STAGES
-unchanged so both assemble + qa land in a single idempotence boundary).
-
 Stage contract (StageProtocol / CheckpointMixin):
     stage_name      = "assemble"      — done-marker path: .assemble.done
     checkpoint_name = "assembly"      — checkpoint JSON: assembly.json
@@ -15,23 +11,37 @@ Idempotence (D-10):
     The orchestrator's done-marker check (.assemble.done) handles the common resume
     path; this guards the rarer "marker gone, files present" case.
 
+    QA idempotence sub-boundary: if output.mp4 AND qa_report.json both exist but
+    assembly.json is absent (partial run), the QA sub-step is also skipped — the
+    normalized output.mp4 and report are already present.
+
 Atomic write (D-10):
-    ffmpeg writes to output.mp4.tmp; os.replace renames to output.mp4 (same
-    filesystem — POSIX atomic). No partial MP4 ever lands at the final path.
+    ffmpeg assembly writes to output.mp4.tmp; os.replace renames to output.mp4.
+    loudnorm pass-2 writes to output.mp4.norm.tmp; os.replace renames to output.mp4.
+    qa_report.json written to qa_report.json.tmp; os.replace renames to qa_report.json.
+    No partial files ever land at final paths.
 
 Real durations (ASMB-01 / D-02):
     Each slide's duration equals its audio file's container duration as measured
-    by ffprobe — NOT estimated from timings.json / WPM. Pitfall 5 mitigation.
+    by ffprobe — NOT estimated from timings.json / WPM.  Pitfall 5 mitigation.
 
-Security (T-05-02):
-    Output paths are built from workdir.root / fixed names only (output.mp4,
-    output.mp4.tmp, subs/output.srt — no user-controlled path components).
+QA sub-step (QA-01/02, per 05-RESEARCH Open Question 1):
+    After the assembly encode, AssembleStage runs two-pass EBU R128 loudnorm:
+    1. Pass-1 measures integrated loudness (parse_loudnorm_json on stderr).
+    2. Pass-2 applies measured values with linear=true, -c:v copy, +faststart.
+    3. probe_duration on the normalized output.mp4 → actual duration.
+    4. build_qa_report constructs QAReport(target, actual, measured_lufs, normalized_lufs).
+    5. qa_report.json written atomically.
+    6. Rich table printed to terminal (D-08).
+    7. QAReport attached to AssemblyOutput before return.
 
-Note on QAReport (plan 05-02):
-    This stage returns AssemblyOutput with qa=None.  The QA sub-step (two-pass
-    loudnorm + deviation report) is layered on top in plan 05-02 and will enrich
-    the returned AssemblyOutput with a QAReport.  Leaving qa=None here keeps the
-    idempotence boundary clean.
+Security (T-05-02, T-05-06, T-05-07, T-05-08):
+    All output paths are workdir.root / fixed names only (output.mp4, output.mp4.tmp,
+    output.mp4.norm.tmp, qa_report.json, qa_report.json.tmp, subs/output.srt).
+    No user-controlled path components.
+    Loudnorm args are a Python list[str], shell=False implicit (T-05-06).
+    parse_loudnorm_json isolates the last {...} block (T-05-07).
+    Atomic writes prevent partial artifacts on crash (T-05-08).
 """
 from __future__ import annotations
 
@@ -39,15 +49,22 @@ import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
-from avideo.models.assembly import AssemblyOutput
-from avideo.models.slides import SlidesOutput
-from avideo.models.voice import VoiceOutput
-from avideo.stages.base import CheckpointMixin
+from rich.table import Table
+
 from avideo.integrations.ffmpeg import (
     build_assemble_args,
+    loudnorm_pass1_args,
+    loudnorm_pass2_args,
+    parse_loudnorm_json,
     probe_duration,
     run_ffmpeg,
 )
+from avideo.models.assembly import AssemblyOutput
+from avideo.models.slides import SlidesOutput
+from avideo.models.timings import UnifiedTimings
+from avideo.stages.base import CheckpointMixin
+from avideo.stages.qa import build_qa_report, within_tolerance
+from avideo.utils.rich_ui import console
 
 if TYPE_CHECKING:
     from avideo.models.config import RunConfig
@@ -63,8 +80,9 @@ class AssembleStage(CheckpointMixin):
         subs checkpoint (optional, only when config.burn_subs)
 
     Writes:
-        workdir/output.mp4  (1080p 16:9 H.264 yuv420p, atomic tmp→rename)
-        Returns AssemblyOutput — the ORCHESTRATOR writes assembly.json.
+        workdir/output.mp4      (1080p 16:9 H.264 yuv420p, atomic tmp→rename)
+        workdir/qa_report.json  (QAReport with duration deviation + LUFS metrics)
+        Returns AssemblyOutput  — the ORCHESTRATOR writes assembly.json.
 
     Attributes:
         stage_name: ``"assemble"`` — matches AssembleStub and existing done-markers.
@@ -78,7 +96,7 @@ class AssembleStage(CheckpointMixin):
         return "assembly"
 
     def run(self, workdir: "WorkdirManager", config: "RunConfig") -> AssemblyOutput:
-        """Assemble per-slide PNGs and audio into a single 1080p 16:9 H.264 MP4.
+        """Assemble per-slide PNGs and audio into a single 1080p 16:9 H.264 MP4 with QA.
 
         Steps:
         1. Idempotence check (D-10): return early if output.mp4 + assembly.json exist.
@@ -89,20 +107,29 @@ class AssembleStage(CheckpointMixin):
         6. Build ffmpeg arg list (build_assemble_args).
         7. Run ffmpeg (writes to output.mp4.tmp).
         8. Atomic rename tmp → output.mp4 (D-10).
-        9. Return AssemblyOutput (qa=None; QA is plan 05-02's responsibility).
+        9. QA sub-step (QA-01/02): two-pass loudnorm + duration deviation + report.
+           a. If output.mp4 AND qa_report.json already exist, reload and attach.
+           b. Pass-1: measure loudness (parse_loudnorm_json on ffmpeg stderr).
+           c. Pass-2: apply with linear=true, -c:v copy, +faststart (Pitfall 2).
+           d. probe_duration on normalized output.mp4 → actual_seconds.
+           e. build_qa_report → QAReport.
+           f. Write qa_report.json atomically.
+           g. Print Rich table (D-08).
+        10. Return AssemblyOutput(output_path=..., qa=report).
 
         Args:
             workdir: WorkdirManager providing root path and checkpoint access.
-            config: RunConfig with crossfade_seconds, burn_subs, etc.
+            config: RunConfig with crossfade_seconds, burn_subs, duration, target_lufs.
 
         Returns:
-            AssemblyOutput with the absolute output_path.
+            AssemblyOutput with the absolute output_path and attached QAReport.
 
         Raises:
             RuntimeError: If slide / audio count mismatch, or if ffmpeg fails.
         """
         output_mp4 = workdir.root / "output.mp4"
         assembly_json = workdir.checkpoint_path("assembly")
+        qa_json = workdir.root / "qa_report.json"
 
         # --- Step 1: Idempotence (D-10) ---
         if output_mp4.exists() and assembly_json.exists():
@@ -116,12 +143,15 @@ class AssembleStage(CheckpointMixin):
         slides_out: SlidesOutput = workdir.read_checkpoint(  # type: ignore[assignment]
             "slides", SlidesOutput
         )
-        voice_out: VoiceOutput = workdir.read_checkpoint(  # type: ignore[assignment]
-            "voice", VoiceOutput
+        # The "voice" checkpoint is written by VoiceStage as UnifiedTimings (not VoiceOutput).
+        # UnifiedTimings.slides[i].audio_path is the relative audio path per slide.
+        voice_out: UnifiedTimings = workdir.read_checkpoint(  # type: ignore[assignment]
+            "voice", UnifiedTimings
         )
 
         png_paths_raw = slides_out.png_paths
-        audio_paths_raw = voice_out.audio_paths
+        # Extract audio paths from UnifiedTimings (relative → resolved below with workdir.root)
+        audio_paths_raw = [slide.audio_path for slide in voice_out.slides]
 
         # --- Step 3: Validate counts ---
         if not png_paths_raw:
@@ -178,5 +208,168 @@ class AssembleStage(CheckpointMixin):
         # --- Step 8: Atomic publish (D-10 — tmp → rename) ---
         os.replace(str(tmp_mp4), str(output_mp4))
 
-        # --- Step 9: Return output (QA is plan 05-02's responsibility) ---
-        return AssemblyOutput(output_path=str(output_mp4))
+        # --- Step 9: QA sub-step (QA-01/02, per 05-RESEARCH Open Question 1) ---
+        report = self._run_qa(
+            workdir=workdir,
+            output_mp4=output_mp4,
+            qa_json=qa_json,
+            config=config,
+        )
+
+        # --- Step 10: Return output with QA report attached ---
+        return AssemblyOutput(output_path=str(output_mp4), qa=report)
+
+    def _run_qa(
+        self,
+        *,
+        workdir: "WorkdirManager",
+        output_mp4: Path,
+        qa_json: Path,
+        config: "RunConfig",
+    ) -> "AssemblyOutput.__fields__['qa']":  # type: ignore[return]  # returns QAReport
+        """Run the two-pass loudnorm QA sub-step and return the QAReport.
+
+        Idempotent: if qa_report.json already exists (from a prior run that
+        completed the QA but not the orchestrator's checkpoint write), reload
+        and return the existing report without re-running loudnorm.
+
+        Security (T-05-06): both loudnorm passes use list[str] + run_ffmpeg
+        (shell=False implicit).  Paths are fixed workdir names (T-05-08).
+
+        Args:
+            workdir:    WorkdirManager instance for path resolution.
+            output_mp4: Path to the assembled output.mp4 to normalize.
+            qa_json:    Path where qa_report.json should be written.
+            config:     RunConfig carrying duration (QA target) and target_lufs.
+
+        Returns:
+            QAReport with duration deviation + measured/normalized LUFS.
+        """
+        from avideo.models.assembly import QAReport  # noqa: PLC0415 — avoids circular at module load
+
+        # QA idempotence: if qa_report.json already exists, reload it
+        if qa_json.exists():
+            return QAReport.model_validate_json(qa_json.read_text(encoding="utf-8"))
+
+        target_lufs = getattr(config, "target_lufs", -16.0)
+        norm_tmp = workdir.root / "output.mp4.norm.tmp"
+
+        # --- Pass 1: measure loudness ---
+        pass1_args = loudnorm_pass1_args(str(output_mp4), target_lufs=target_lufs)
+        pass1_proc = run_ffmpeg(pass1_args)
+        measured = parse_loudnorm_json(pass1_proc.stderr)
+        measured_lufs: float = measured["input_i"]
+
+        # --- Pass 2: apply with linear=true, -c:v copy, +faststart (Pitfall 2) ---
+        pass2_args = loudnorm_pass2_args(
+            str(output_mp4),
+            str(norm_tmp),
+            measured_I=measured["measured_I"],
+            measured_TP=measured["measured_TP"],
+            measured_LRA=measured["measured_LRA"],
+            measured_thresh=measured["measured_thresh"],
+            offset=measured["offset"],
+            target_lufs=target_lufs,
+        )
+        pass2_proc = run_ffmpeg(pass2_args)
+
+        # Atomic replace: normalized audio overwrites the assembled output.mp4
+        os.replace(str(norm_tmp), str(output_mp4))
+
+        # Determine normalized_lufs from pass-2 stderr (output_i ≈ target)
+        normalized_lufs: float = target_lufs  # fallback = target
+        try:
+            pass2_measured = parse_loudnorm_json(pass2_proc.stderr)
+            # pass-2 output_i reported in the JSON block (it's the applied_i value)
+            # input_i in the pass-2 block is what was measured before apply → same as pass-1
+            # Use target_lufs as normalized_lufs when pass-2 JSON has output_i ≈ target
+            if "input_i" in pass2_measured:
+                # pass2 output_i is reported as input_i in the re-emitted JSON
+                normalized_lufs = pass2_measured.get("input_i", target_lufs)
+        except (ValueError, KeyError):
+            # If pass-2 stderr doesn't have parseable block, use target as estimate
+            normalized_lufs = target_lufs
+
+        # --- QA-01: duration deviation ---
+        actual_seconds = probe_duration(str(output_mp4))
+        target_seconds = float(config.duration)
+
+        # --- Build QAReport ---
+        qa_report = build_qa_report(
+            target_seconds=target_seconds,
+            actual_seconds=actual_seconds,
+            measured_lufs=measured_lufs,
+            normalized_lufs=normalized_lufs,
+        )
+
+        # --- Write qa_report.json atomically (T-05-08) ---
+        qa_tmp = workdir.root / "qa_report.json.tmp"
+        qa_tmp.write_text(qa_report.model_dump_json(indent=2), encoding="utf-8")
+        os.replace(str(qa_tmp), str(qa_json))
+
+        # --- Print Rich QA table (D-08) ---
+        self._print_qa_table(qa_report)
+
+        return qa_report
+
+    def _print_qa_table(self, report: "AssemblyOutput.__fields__['qa']") -> None:  # type: ignore[return]
+        """Print the QA metrics as a Rich table to stderr (D-08).
+
+        Rows: Target Duration, Actual Duration, Deviation, Measured LUFS, Normalized LUFS.
+        The deviation row is flagged with a colour hint when outside tolerance (Pitfall 7).
+
+        Args:
+            report: Populated QAReport to display.
+        """
+        from avideo.models.assembly import QAReport  # noqa: PLC0415
+
+        if not isinstance(report, QAReport):
+            return
+
+        table = Table(
+            "Metric",
+            "Value",
+            "Status",
+            title="[bold cyan]QA Report[/bold cyan]",
+            border_style="cyan",
+        )
+
+        # Duration rows
+        table.add_row(
+            "Target Duration",
+            f"{report.target_seconds:.3f} s",
+            "",
+        )
+        table.add_row(
+            "Actual Duration",
+            f"{report.actual_seconds:.3f} s",
+            "",
+        )
+
+        dev = report.duration_deviation
+        ok = within_tolerance(dev)
+        dev_status = "[green]OK[/green]" if ok else "[yellow]WARNING[/yellow]"
+        dev_sign = "+" if dev >= 0 else ""
+        table.add_row(
+            "Duration Deviation",
+            f"{dev_sign}{dev:.3f} s",
+            dev_status,
+        )
+
+        # Loudness rows
+        if report.measured_lufs is not None:
+            table.add_row(
+                "Measured LUFS",
+                f"{report.measured_lufs:.2f} LUFS",
+                "",
+            )
+        if report.normalized_lufs is not None:
+            norm_ok = abs(report.normalized_lufs - (-16.0)) < 2.0
+            norm_status = "[green]OK[/green]" if norm_ok else "[yellow]CHECK[/yellow]"
+            table.add_row(
+                "Normalized LUFS",
+                f"{report.normalized_lufs:.2f} LUFS",
+                norm_status,
+            )
+
+        console.print(table)

@@ -582,7 +582,7 @@ def test_assemble_end_to_end_writes_qa_report(tmp_path, loudnorm_pass1_stderr):
     from avideo.stages.assemble import AssembleStage  # noqa: PLC0415
     from avideo.models.assembly import AssemblyOutput, QAReport  # noqa: PLC0415
     from avideo.models.slides import SlidesOutput  # noqa: PLC0415
-    from avideo.models.voice import VoiceOutput  # noqa: PLC0415
+    from avideo.models.timings import UnifiedTimings, SlideTimings, WordTiming  # noqa: PLC0415
     from avideo.utils.workdir import WorkdirManager  # noqa: PLC0415
     from avideo.models.config import RunConfig  # noqa: PLC0415
 
@@ -601,10 +601,15 @@ def test_assemble_end_to_end_writes_qa_report(tmp_path, loudnorm_pass1_stderr):
     )
     workdir.write_checkpoint("slides", slides_out)
 
-    # Write voice.json checkpoint
-    voice_out = VoiceOutput(
-        audio_paths=[str(audio_path)],
-        voice_mode="elevenlabs",
+    # Write voice.json checkpoint as UnifiedTimings (what VoiceStage actually writes)
+    voice_out = UnifiedTimings(
+        source="elevenlabs",
+        slides=[SlideTimings(
+            slide_index=0,
+            audio_path=str(audio_path),
+            duration=10.5,
+            words=[WordTiming(text="test", start=0.0, end=0.5)],
+        )],
     )
     workdir.write_checkpoint("voice", voice_out)
 
