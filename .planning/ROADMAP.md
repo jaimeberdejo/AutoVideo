@@ -12,7 +12,7 @@ Pipeline CLI en Python que transforma bullets + duración en un vídeo narrado (
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation** - Orquestador secuencial + CLI typer + modelos Pydantic + WorkdirManager + niveles L1-L4 (pipeline end-to-end con stubs)
+- [x] **Phase 1: Foundation** - Orquestador secuencial + CLI typer + modelos Pydantic + WorkdirManager + niveles L1-L4 (pipeline end-to-end con stubs) (completed 2026-05-25)
 - [ ] **Phase 2: LLM Pipeline** - Ingesta de contexto + Storyboard (Claude) + Director de timing + Guionista (Claude)
 - [ ] **Phase 3: Slides Auto** - Jinja2 + Playwright → PNG 1920×1080 + theme.yaml + iconos SVG offline (modo `auto`)
 - [ ] **Phase 4: Voz + Subtítulos** - ElevenLabs TTS con timestamps + modo record + WhisperX (alineación) + SRT/VTT
@@ -35,9 +35,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 3 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Bootstrap uv/Python 3.11 + modelos Pydantic (RunConfig + contratos I/O de todas las etapas) + WorkdirManager (escritura atómica os.replace, done markers)
-- [ ] 01-02-PLAN.md — CLI typer (`generate` con los 9 flags) + merge config.yaml (CLI>YAML>default) + ValidationError→tabla Rich + setup_logging
-- [ ] 01-03-PLAN.md — Orquestador secuencial (StageProtocol/CheckpointMixin, 10 stubs, skip-done, approval gates L1-L4) + cost_estimator --dry-run + RichUI pause/progress + checkpoint de aceptación
+- [x] 01-01-PLAN.md — Bootstrap uv/Python 3.11 + modelos Pydantic (RunConfig + contratos I/O de todas las etapas) + WorkdirManager (escritura atómica os.replace, done markers)
+- [x] 01-02-PLAN.md — CLI typer (`generate` con los 9 flags) + merge config.yaml (CLI>YAML>default) + ValidationError→tabla Rich + setup_logging
+- [x] 01-03-PLAN.md — Orquestador secuencial (StageProtocol/CheckpointMixin, 10 stubs, skip-done, approval gates L1-L4) + cost_estimator --dry-run + RichUI pause/progress + checkpoint de aceptación
 
 ### Phase 2: LLM Pipeline
 **Goal**: A partir de bullets y duración el sistema genera un storyboard estructurado, calcula la distribución de tiempo por slide con presupuesto de palabras, y produce el guion completo calibrado — todo persistido como JSON validado con Pydantic
@@ -138,7 +138,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/3 | Not started | - |
+| 1. Foundation | 3/3 | Complete    | 2026-05-25 |
 | 2. LLM Pipeline | 0/3 | Not started | - |
 | 3. Slides Auto | 0/2 | Not started | - |
 | 4. Voz + Subtítulos | 0/3 | Not started | - |

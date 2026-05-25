@@ -9,22 +9,22 @@ Requisitos del release inicial. Cada uno se mapea a fases del roadmap.
 
 ### CLI — Interfaz de línea de comandos
 
-- [ ] **CLI-01**: El usuario puede ejecutar `generate` con `--bullets` y `--duration` y obtener un vídeo MP4 final
-- [ ] **CLI-02**: El usuario puede elegir la fuente de voz con `--voice {elevenlabs|record}`
-- [ ] **CLI-03**: El usuario puede elegir el modo de slides con `--slides-mode {auto|hybrid|manual}`
-- [ ] **CLI-04**: El usuario puede elegir el nivel de automatización con `--level {1..4}`
-- [ ] **CLI-05**: El usuario puede aportar un documento de contexto opcional con `--context`
-- [ ] **CLI-06**: El usuario puede ejecutar `--dry-run` para estimar tokens/coste y duración sin generar audio/vídeo
-- [ ] **CLI-07**: La configuración por defecto se lee de `config.yaml` y los flags de CLI la sobreescriben (validada con pydantic)
-- [ ] **CLI-08**: El progreso y los logs se muestran de forma legible con `rich`
+- [x] **CLI-01**: El usuario puede ejecutar `generate` con `--bullets` y `--duration` y obtener un vídeo MP4 final
+- [x] **CLI-02**: El usuario puede elegir la fuente de voz con `--voice {elevenlabs|record}`
+- [x] **CLI-03**: El usuario puede elegir el modo de slides con `--slides-mode {auto|hybrid|manual}`
+- [x] **CLI-04**: El usuario puede elegir el nivel de automatización con `--level {1..4}`
+- [x] **CLI-05**: El usuario puede aportar un documento de contexto opcional con `--context`
+- [x] **CLI-06**: El usuario puede ejecutar `--dry-run` para estimar tokens/coste y duración sin generar audio/vídeo
+- [x] **CLI-07**: La configuración por defecto se lee de `config.yaml` y los flags de CLI la sobreescriben (validada con pydantic)
+- [x] **CLI-08**: El progreso y los logs se muestran de forma legible con `rich`
 
 ### ORCH — Orquestador, checkpoints y niveles
 
-- [ ] **ORCH-01**: El pipeline ejecuta todas las etapas en orden de forma secuencial
-- [ ] **ORCH-02**: Cada etapa guarda su checkpoint en `./workdir/` y el pipeline puede reanudarse desde el último checkpoint
-- [ ] **ORCH-03**: Re-ejecutar una etapa ya completada no duplica trabajo (idempotencia con escritura atómica tmp→rename)
-- [ ] **ORCH-04**: Los niveles L1–L4 controlan en qué puntos el pipeline se pausa para aprobación del usuario
-- [ ] **ORCH-05**: La E/S entre etapas está tipada y validada con `pydantic` (contratos JSON entre etapas)
+- [x] **ORCH-01**: El pipeline ejecuta todas las etapas en orden de forma secuencial
+- [x] **ORCH-02**: Cada etapa guarda su checkpoint en `./workdir/` y el pipeline puede reanudarse desde el último checkpoint
+- [x] **ORCH-03**: Re-ejecutar una etapa ya completada no duplica trabajo (idempotencia con escritura atómica tmp→rename)
+- [x] **ORCH-04**: Los niveles L1–L4 controlan en qué puntos el pipeline se pausa para aprobación del usuario
+- [x] **ORCH-05**: La E/S entre etapas está tipada y validada con `pydantic` (contratos JSON entre etapas)
 
 ### CTX — Ingesta de contexto
 
@@ -132,19 +132,19 @@ Qué fases cubren qué requisitos.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CLI-01 | Phase 1 | Pending |
-| CLI-02 | Phase 1 | Pending |
-| CLI-03 | Phase 1 | Pending |
-| CLI-04 | Phase 1 | Pending |
-| CLI-05 | Phase 1 | Pending |
-| CLI-06 | Phase 1 | Pending |
-| CLI-07 | Phase 1 | Pending |
-| CLI-08 | Phase 1 | Pending |
-| ORCH-01 | Phase 1 | Pending |
-| ORCH-02 | Phase 1 | Pending |
-| ORCH-03 | Phase 1 | Pending |
-| ORCH-04 | Phase 1 | Pending |
-| ORCH-05 | Phase 1 | Pending |
+| CLI-01 | Phase 1 | Complete |
+| CLI-02 | Phase 1 | Complete |
+| CLI-03 | Phase 1 | Complete |
+| CLI-04 | Phase 1 | Complete |
+| CLI-05 | Phase 1 | Complete |
+| CLI-06 | Phase 1 | Complete |
+| CLI-07 | Phase 1 | Complete |
+| CLI-08 | Phase 1 | Complete |
+| ORCH-01 | Phase 1 | Complete |
+| ORCH-02 | Phase 1 | Complete |
+| ORCH-03 | Phase 1 | Complete |
+| ORCH-04 | Phase 1 | Complete |
+| ORCH-05 | Phase 1 | Complete |
 | CTX-01 | Phase 2 | Pending |
 | CTX-02 | Phase 2 | Pending |
 | STORY-01 | Phase 2 | Pending |
