@@ -692,22 +692,13 @@ def show_validation_error(e: ValidationError, console: Console) -> None:
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **`pydantic-settings[yaml]` vs `pydantic-settings` extra install**
-   - What we know: `YamlConfigSettingsSource` exists in pydantic-settings 2.14.1 per API docs [CITED: pydantic.dev]
-   - What's unclear: Whether `pyyaml` import is automatic or requires an `[yaml]` extra at install time
-   - Recommendation: Plan 01-02 Wave 0 should include a quick import test: `python -c "from pydantic_settings import YamlConfigSettingsSource"` and adjust install command if it fails
+1. **`pydantic-settings[yaml]` vs `pydantic-settings` extra install** — RESOLVED: 01-01 Task 0 includes a runtime import test `python -c "from pydantic_settings import YamlConfigSettingsSource"` and falls back to `pydantic-settings[yaml]` if it fails. Plain `pydantic-settings>=2.14.1` is tried first.
 
-2. **`os.replace()` vs `Path.rename()` for atomic writes on Windows**
-   - What we know: POSIX `rename()` is atomic on same-filesystem. `Path.rename()` calls POSIX `rename()` on Unix.
-   - What's unclear: NTFS atomic guarantee for `Path.rename()` vs `os.replace()` (which calls `MoveFileExW` with `MOVEFILE_REPLACE_EXISTING`)
-   - Recommendation: Use `os.replace(str(tmp), str(target))` in `WorkdirManager.write_checkpoint()` — it is guaranteed atomic on both POSIX and Windows
+2. **`os.replace()` vs `Path.rename()` for atomic writes on Windows** — RESOLVED: `os.replace(str(tmp), str(target))` used in `WorkdirManager.write_checkpoint()` throughout 01-01 Task 2. Guaranteed atomic on both POSIX and Windows (NTFS `MoveFileExW` with `MOVEFILE_REPLACE_EXISTING`).
 
-3. **Minimal stub outputs for downstream stubs**
-   - What we know: Each stub must write a valid Pydantic JSON so the next stub can `model_validate_json()` it
-   - What's unclear: Whether Plan 01-03 should define ALL stub outputs (requiring all models to be complete) or just the ones needed for stage-to-stage data flow
-   - Recommendation: Define all I/O models in Plan 01-01 even if they have `Optional` fields everywhere; stubs in Plan 01-03 write minimal values for required fields only
+3. **Minimal stub outputs for downstream stubs** — RESOLVED: All I/O models defined in Plan 01-01 with complete required fields; stubs in Plan 01-03 write minimal values for required fields only. Optional fields are `Optional` throughout to allow future phases to fill them in.
 
 ---
 
