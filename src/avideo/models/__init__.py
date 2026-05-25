@@ -6,6 +6,7 @@ from .context import ContextOutput
 from .script import ScriptOutput, SlideScript
 from .slides import SlidesOutput
 from .storyboard import SlideSpec, StoryboardOutput, VisualType
+from .subtitles import SubtitlesOutput
 from .theme import DEFAULT_THEME, ThemeConfig
 from .timing import SlideTiming, TimingOutput
 from .timings import SlideTimings, UnifiedTimings, WordTiming
@@ -33,6 +34,7 @@ __all__ = [
     "SlideVerdict",
     "VerificationReport",
     "VoiceOutput",
+    "SubtitlesOutput",
     "QAReport",
     "AssemblyOutput",
     # Phase 4: unified timings (D-11)
