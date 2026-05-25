@@ -1,0 +1,33 @@
+[project]
+name = "avideo"
+version = "0.1.0"
+description = "Pipeline CLI to generate narrated videos from bullet points"
+authors = [
+    { name = "jaimeberdejo", email = "jbs1902@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.13.4",
+    "pydantic-settings>=2.14.1",
+    "typer>=0.25.1",
+    "rich>=15.0.0",
+    "pyyaml>=6.0.3",
+]
+
+[project.scripts]
+avideo = "avideo.cli:app"
+
+[build-system]
+requires = ["uv_build>=0.9.24,<0.10.0"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-mock>=3.0",
+    "python-dotenv>=1.0",
+]
