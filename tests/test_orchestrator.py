@@ -330,7 +330,10 @@ def test_orch_dry_run_no_stages_no_mp4(tmp_path, monkeypatch):
 
 
 def test_orch_mark_done_not_called_on_exception(tmp_path, monkeypatch):
-    """Pitfall 4: if stage.run raises, mark_done is NOT called; is_done stays False."""
+    """Pitfall 4: if stage.run raises, mark_done is NOT called; is_done stays False.
+    The orchestrator converts any stage exception to typer.Exit(1) for clean UX."""
+    import typer as typer_module
+
     from avideo.orchestrator import run_pipeline
     from avideo.stages import stubs as stubs_module
     from avideo.utils.workdir import WorkdirManager
@@ -340,8 +343,10 @@ def test_orch_mark_done_not_called_on_exception(tmp_path, monkeypatch):
     # Make the first stage (context) raise
     monkeypatch.setattr(stubs_module.PIPELINE_STAGES[0], "run", MagicMock(side_effect=RuntimeError("boom")))
 
-    with pytest.raises(RuntimeError, match="boom"):
+    # Stage exceptions are now caught and converted to typer.Exit(1)
+    with pytest.raises(typer_module.Exit) as exc_info:
         run_pipeline(config)
+    assert exc_info.value.exit_code == 1
 
     wd = WorkdirManager(config.workdir)
     assert not wd.is_done("context"), "mark_done must not be called when run() raises"

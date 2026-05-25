@@ -105,8 +105,9 @@ def run_pipeline(config: RunConfig) -> None:
         config: Fully merged RunConfig (CLI flags > config.yaml > defaults).
 
     Raises:
-        typer.Exit: On KeyboardInterrupt (code 130) or any unhandled stage error
-            that propagates out of the stage's run() method.
+        typer.Exit: On KeyboardInterrupt at the approval prompt or during a stage
+            (code 130), or on any unhandled stage exception (code 1).  No raw
+            Python traceback reaches the user.
     """
     # ------------------------------------------------------------------
     # Dry-run branch: print cost table and return immediately.
@@ -131,12 +132,16 @@ def run_pipeline(config: RunConfig) -> None:
                 progress.advance(task_id)
                 continue
 
-            # Approval gate (L1/L2/L3 only; L4 never pauses)
-            if should_pause(stage.stage_name, config.level):
-                pause_for_approval(stage.stage_name)
-
-            # Happy path — Pitfall-4 ordering: write_checkpoint THEN mark_done
+            # Pitfall-4 ordering + clean error handling:
+            # Wrap the approval gate AND stage execution so that both Ctrl-C
+            # (at the prompt or during the stage) and unexpected stage errors
+            # surface as a clean Rich message rather than a raw traceback.
             try:
+                # Approval gate (L1/L2/L3 only; L4 never pauses)
+                if should_pause(stage.stage_name, config.level):
+                    pause_for_approval(stage.stage_name)
+
+                # Happy path — Pitfall-4 ordering: write_checkpoint THEN mark_done
                 output = stage.run(workdir, config)
                 workdir.write_checkpoint(stage.checkpoint_name, output)
                 workdir.mark_done(stage.stage_name)
@@ -146,5 +151,8 @@ def run_pipeline(config: RunConfig) -> None:
                     f"\n[yellow]Interrupted at {stage.stage_name}[/yellow]"
                 )
                 raise typer.Exit(130)
+            except Exception as exc:  # pragma: no cover (real errors arrive in later phases)
+                console.print(f"[red]Stage {stage.stage_name} failed:[/red] {exc}")
+                raise typer.Exit(1)
 
             progress.advance(task_id)
