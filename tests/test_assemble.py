@@ -315,6 +315,194 @@ def test_assemble_idempotent(tmp_path):
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Tests: parse_loudnorm_json (pure, uses fixture) — QA-02
+# ---------------------------------------------------------------------------
+
+
+def test_parse_loudnorm_json_returns_floats(loudnorm_pass1_stderr):
+    """parse_loudnorm_json must return float values for all expected keys."""
+    from avideo.integrations.ffmpeg import parse_loudnorm_json  # noqa: PLC0415
+
+    result = parse_loudnorm_json(loudnorm_pass1_stderr)
+
+    assert isinstance(result, dict)
+    assert "measured_I" in result
+    assert "measured_TP" in result
+    assert "measured_LRA" in result
+    assert "measured_thresh" in result
+    assert "offset" in result
+    for key, val in result.items():
+        assert isinstance(val, float), f"Key '{key}' must be float, got {type(val)}"
+
+
+def test_parse_loudnorm_json_measured_i_value(loudnorm_pass1_stderr):
+    """parse_loudnorm_json measured_I must equal -22.01 from the fixture."""
+    from avideo.integrations.ffmpeg import parse_loudnorm_json  # noqa: PLC0415
+
+    result = parse_loudnorm_json(loudnorm_pass1_stderr)
+
+    assert result["measured_I"] == pytest.approx(-22.01), (
+        f"Expected measured_I ≈ -22.01, got {result['measured_I']}"
+    )
+
+
+def test_parse_loudnorm_json_raises_on_garbage():
+    """parse_loudnorm_json must raise ValueError when no JSON block is found."""
+    from avideo.integrations.ffmpeg import parse_loudnorm_json  # noqa: PLC0415
+
+    with pytest.raises(ValueError, match="No loudnorm JSON block"):
+        parse_loudnorm_json("garbage no braces here")
+
+
+def test_parse_loudnorm_json_raises_on_missing_fields():
+    """parse_loudnorm_json must raise KeyError/ValueError when required fields are absent."""
+    from avideo.integrations.ffmpeg import parse_loudnorm_json  # noqa: PLC0415
+
+    # JSON block with wrong/missing field names
+    stderr_with_bad_json = 'some log line\n{"oops": 1}\n'
+    with pytest.raises((KeyError, ValueError)):
+        parse_loudnorm_json(stderr_with_bad_json)
+
+
+def test_parse_loudnorm_json_uses_last_block():
+    """parse_loudnorm_json must parse the LAST {...} block (Pitfall 4)."""
+    from avideo.integrations.ffmpeg import parse_loudnorm_json  # noqa: PLC0415
+
+    # Multiple blocks — last one has correct fields
+    stderr = (
+        '{"oops": 1}\n'
+        '{\n'
+        '    "input_i" : "-18.50",\n'
+        '    "input_tp" : "-10.00",\n'
+        '    "input_lra" : "5.00",\n'
+        '    "input_thresh" : "-28.50",\n'
+        '    "output_i" : "-16.00",\n'
+        '    "output_tp" : "-1.50",\n'
+        '    "output_lra" : "4.50",\n'
+        '    "output_thresh" : "-26.00",\n'
+        '    "normalization_type" : "linear",\n'
+        '    "target_offset" : "-0.50"\n'
+        '}\n'
+    )
+    result = parse_loudnorm_json(stderr)
+    assert result["measured_I"] == pytest.approx(-18.50)
+
+
+# ---------------------------------------------------------------------------
+# Tests: loudnorm pass-2 args — QA-02 (Pitfall 2: faststart + linear=true)
+# ---------------------------------------------------------------------------
+
+
+def test_loudnorm_pass2_args_has_faststart():
+    """loudnorm_pass2_args must include +faststart AND -c:v copy AND linear=true (Pitfall 2)."""
+    from avideo.integrations.ffmpeg import loudnorm_pass2_args  # noqa: PLC0415
+
+    measured = {
+        "measured_I": -22.01,
+        "measured_TP": -20.91,
+        "measured_LRA": 0.70,
+        "measured_thresh": -32.01,
+        "offset": -0.26,
+    }
+    args = loudnorm_pass2_args(
+        "/tmp/input.mp4",
+        "/tmp/output.mp4",
+        **measured,
+        target_lufs=-16.0,
+    )
+
+    assert isinstance(args, list), "loudnorm_pass2_args must return a list"
+    args_str = " ".join(args)
+
+    # Pitfall 2: faststart must be re-added
+    assert "+faststart" in args_str, f"+faststart missing in args: {args_str}"
+    assert "-c:v" in args and "copy" in args, f"-c:v copy missing in args: {args}"
+    assert "linear=true" in args_str, f"linear=true missing in args: {args_str}"
+
+
+# ---------------------------------------------------------------------------
+# Tests: duration_deviation (pure) — QA-01
+# ---------------------------------------------------------------------------
+
+
+def test_deviation_basic():
+    """duration_deviation(actual, target) == actual - target."""
+    from avideo.stages.qa import duration_deviation  # noqa: PLC0415
+
+    result = duration_deviation(actual_seconds=8.533, target_seconds=8.5)
+    assert result == pytest.approx(0.033, abs=1e-6)
+
+
+def test_deviation_negative():
+    """duration_deviation is negative when actual < target."""
+    from avideo.stages.qa import duration_deviation  # noqa: PLC0415
+
+    result = duration_deviation(actual_seconds=7.9, target_seconds=8.5)
+    assert result < 0
+    assert result == pytest.approx(-0.6, abs=1e-6)
+
+
+def test_deviation_zero():
+    """duration_deviation is zero when actual == target."""
+    from avideo.stages.qa import duration_deviation  # noqa: PLC0415
+
+    result = duration_deviation(actual_seconds=8.5, target_seconds=8.5)
+    assert result == pytest.approx(0.0)
+
+
+def test_deviation_within_tolerance():
+    """within_tolerance returns True for small deviation and False for large."""
+    from avideo.stages.qa import within_tolerance  # noqa: PLC0415
+
+    assert within_tolerance(0.033) is True   # 33ms — within 0.5s default
+    assert within_tolerance(0.499) is True   # just under
+    assert within_tolerance(1.5) is False    # over 0.5s threshold
+    assert within_tolerance(-1.5) is False   # negative large deviation
+
+
+# ---------------------------------------------------------------------------
+# Tests: build_qa_report (pure) — QA-01/02
+# ---------------------------------------------------------------------------
+
+
+def test_build_qa_report_fields():
+    """build_qa_report must return QAReport with correct deviation + LUFS fields."""
+    from avideo.stages.qa import build_qa_report  # noqa: PLC0415
+    from avideo.models.assembly import QAReport  # noqa: PLC0415
+
+    report = build_qa_report(
+        target_seconds=8.5,
+        actual_seconds=8.533,
+        measured_lufs=-22.01,
+        normalized_lufs=-16.01,
+    )
+
+    assert isinstance(report, QAReport)
+    assert report.target_seconds == pytest.approx(8.5)
+    assert report.actual_seconds == pytest.approx(8.533)
+    assert report.duration_deviation == pytest.approx(0.033, abs=1e-6)
+    assert report.measured_lufs == pytest.approx(-22.01)
+    assert report.normalized_lufs == pytest.approx(-16.01)
+
+
+def test_build_qa_report_has_measured_and_normalized_lufs():
+    """QAReport must carry both measured_lufs and normalized_lufs fields."""
+    from avideo.models.assembly import QAReport  # noqa: PLC0415
+
+    # Direct construction to verify model has both new fields
+    report = QAReport(
+        target_seconds=10.0,
+        actual_seconds=10.5,
+        duration_deviation=0.5,
+        measured_lufs=-20.0,
+        normalized_lufs=-16.0,
+    )
+
+    assert report.measured_lufs == pytest.approx(-20.0)
+    assert report.normalized_lufs == pytest.approx(-16.0)
+
+
 @pytest.mark.skipif(
     shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None,
     reason="ffmpeg/ffprobe not installed — smoke test skipped",
