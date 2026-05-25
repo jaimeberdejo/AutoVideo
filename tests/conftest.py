@@ -1,5 +1,7 @@
 """Shared pytest fixtures for avideo test suite."""
 import base64
+import shutil
+import subprocess
 import types
 import pytest
 from pathlib import Path
@@ -245,3 +247,86 @@ def fake_storyboard():
             ),
         ],
     )
+
+
+# ---------------------------------------------------------------------------
+# Phase 5 — assembly / FFmpeg fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def loudnorm_pass1_stderr():
+    """Return a canned ffmpeg stderr string containing the loudnorm pass-1 JSON block.
+
+    Field names are VERIFIED from ffmpeg 8.0.1 loudnorm output (05-RESEARCH Pattern 5).
+    Used by plan 05-02 parse_loudnorm_json tests.
+    """
+    # Simulate realistic loudnorm stderr with log lines surrounding the JSON block
+    return (
+        "ffmpeg version 8.0.1\n"
+        "[Parsed_loudnorm_0 @ 0x...] Input Integrated:    -22.01 LUFS\n"
+        "[Parsed_loudnorm_0 @ 0x...] Input True Peak:    -20.91 dBTP\n"
+        "[Parsed_loudnorm_0 @ 0x...] Input LRA:           0.70 LU\n"
+        "[Parsed_loudnorm_0 @ 0x...] Input Threshold:   -32.01 LUFS\n"
+        "[Parsed_loudnorm_0 @ 0x...]\n"
+        "{\n"
+        '    "input_i" : "-22.01",\n'
+        '    "input_tp" : "-20.91",\n'
+        '    "input_lra" : "0.70",\n'
+        '    "input_thresh" : "-32.01",\n'
+        '    "output_i" : "-15.74",\n'
+        '    "output_tp" : "-14.60",\n'
+        '    "output_lra" : "0.50",\n'
+        '    "output_thresh" : "-25.74",\n'
+        '    "normalization_type" : "dynamic",\n'
+        '    "target_offset" : "-0.26"\n'
+        "}\n"
+    )
+
+
+@pytest.fixture
+def tiny_av_assets(tmp_path: Path):
+    """Generate N tiny PNGs and N short sine-wave audio files for smoke tests.
+
+    Uses Pillow for PNGs and ffmpeg lavfi for audio (sine=frequency=440:duration=1).
+    Skips silently (returns empty lists) when ffmpeg is absent — the smoke test
+    that uses this fixture is itself guarded by a skipif.
+
+    Returns:
+        tuple[list[str], list[str]]: (png_paths, audio_paths)
+            Both lists have the same length (N=3).
+    """
+    from PIL import Image  # noqa: PLC0415 — Pillow is a dev dep
+
+    n = 3
+    png_paths = []
+    audio_paths = []
+
+    # Create tiny PNG files (red/green/blue 32x32 images)
+    colors = [(220, 50, 50), (50, 200, 50), (50, 50, 220)]
+    for i, color in enumerate(colors[:n]):
+        img = Image.new("RGB", (32, 32), color=color)
+        png_path = tmp_path / f"slide_{i:02d}.png"
+        img.save(str(png_path))
+        png_paths.append(str(png_path))
+
+    # Create short audio files via ffmpeg lavfi (sine wave, ~1s each)
+    if shutil.which("ffmpeg") is None:
+        # Return dummy paths — the guarded smoke test will skip before using them
+        return (png_paths, [str(tmp_path / f"audio_{i:02d}.mp3") for i in range(n)])
+
+    for i in range(n):
+        audio_path = tmp_path / f"audio_{i:02d}.mp3"
+        # Duration ~1.0s per audio; slightly varied to test non-uniform durations
+        dur = 1.0 + i * 0.1  # 1.0, 1.1, 1.2 seconds
+        cmd = [
+            "ffmpeg", "-hide_banner", "-loglevel", "error",
+            "-f", "lavfi",
+            "-i", f"sine=frequency=440:duration={dur}",
+            "-y",
+            str(audio_path),
+        ]
+        subprocess.run(cmd, check=True, capture_output=True)
+        audio_paths.append(str(audio_path))
+
+    return (png_paths, audio_paths)
