@@ -53,12 +53,20 @@ Requisitos del release inicial. Cada uno se mapea a fases del roadmap.
 - [x] **SLIDE-03**: El tema (paleta, tipografías, espaciado) se parametriza en `theme.yaml` y lo propone la IA
 - [x] **SLIDE-04**: En modo `hybrid`, el sistema genera una propuesta de diseño por slide (brief + mockup opcional) en `workdir/design_proposal/`
 - [x] **SLIDE-05**: En modos `hybrid`/`manual`, el usuario aporta slides en `workdir/slides_user/slide_XX.{png|pdf|pptx}` y el sistema las ingiere (rasterizando si vienen en .pptx/.pdf)
+- [ ] **SLIDE-06**: En modo `auto`, soporta `visual_type: screenshot` con `image_path` y `caption` opcional — el slide renderiza la imagen del usuario dentro de un marco con tipografía y colores del tema (fit-inside + padding)
+- [ ] **SLIDE-07**: `bullets.yaml` acepta items tanto string (actual) como `{text: ..., image: <path>}`; cuando `image` está presente, el storyboard usa `visual_type: screenshot` para ese slide
 
 ### VERIFY — Verificador de slides (visión)
 
 - [x] **VERIFY-01**: En `hybrid`/`manual`, el verificador usa Claude con visión para comprobar por slide: cobertura del contenido del storyboard, fidelidad a la propuesta/tema, encaje con guion/timing y completitud (ni falta ni sobra)
 - [x] **VERIFY-02**: El verificador emite un informe JSON por slide con estado (`ok`/`warning`/`fail`), problemas detectados y sugerencias concretas (`workdir/verification_report.json`)
 - [x] **VERIFY-03**: Según el nivel: L1/L2 muestran el informe y permiten iterar (corregir→re-verificar); L3/L4 continúan si todo es `ok` y se detienen si hay `fail`; en modo `auto` no se ejecuta
+
+### VIDEO — Clips de vídeo en slides (auto mode)
+- [ ] **VIDEO-01**: En modo `auto`, soporta `visual_type: video` con `video_path` para insertar clips .mp4 cortos del usuario como contenido de slide
+- [ ] **VIDEO-02**: La duración del clip de vídeo dicta la duración del slide en el timeline; el scriptwriter calibra la narración para encajar dentro de `wpm × duration(clip) / 60` palabras (overrides timing-director allocation)
+- [ ] **VIDEO-03**: El audio original del clip se silencia en el output final; la narración se superpone; si la narración excede la duración del clip se mantiene el último frame para extender (no se cicla, no se acelera)
+- [ ] **VIDEO-04**: FFmpeg normaliza cada clip a 1920×1080 H.264 yuv420p durante ingesta y los concatena con slides de imagen en un único timeline con crossfades funcionando en todas las transiciones (imagen↔vídeo, vídeo↔vídeo, vídeo↔imagen)
 
 ### VOICE — Voz
 
@@ -173,6 +181,10 @@ Qué fases cubren qué requisitos.
 | VERIFY-01 | Phase 6 | Pending |
 | VERIFY-02 | Phase 6 | Pending |
 | VERIFY-03 | Phase 6 | Pending |
+| VIDEO-01 | Phase 9 | Pending |
+| VIDEO-02 | Phase 9 | Pending |
+| VIDEO-03 | Phase 9 | Pending |
+| VIDEO-04 | Phase 9 | Pending |
 | PKG-01 | Phase 7 | Pending |
 | PKG-02 | Phase 7 | Pending |
 | TEST-01 | Phase 7 | Pending |
