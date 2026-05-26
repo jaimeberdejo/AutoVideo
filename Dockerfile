@@ -15,12 +15,17 @@ WORKDIR /app
 # Copiar manifiestos primero para cachear la capa de dependencias.
 COPY pyproject.toml uv.lock ./
 
-# Instalación reproducible desde el lock; sin dev deps y sin el extra 'record'
-# (el extra 'record' con ~2GB de deps de ML es solo para modo grabacion — ver README).
-RUN uv sync --frozen --no-dev
+# Capa 1: solo dependencias (sin el proyecto), para que esta capa se cachee
+# mientras no cambien pyproject/uv.lock. --no-install-project evita construir el
+# paquete 'avideo' aquí, donde src/ aún no se ha copiado (si no, el build falla).
+# Sin dev deps y sin el extra 'record' (~2GB de deps de ML, solo modo grabacion — ver README).
+RUN uv sync --frozen --no-dev --no-install-project
 
 # Copiar el código fuente del proyecto.
 COPY src ./src
+
+# Capa 2: instalar el proyecto 'avideo' ahora que src/ está presente.
+RUN uv sync --frozen --no-dev
 
 # Asegurar que el Chromium pineado del paquete está disponible
 # (la imagen base ya lo trae; este paso garantiza coincidencia con playwright 1.60.0).
