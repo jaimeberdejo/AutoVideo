@@ -124,12 +124,12 @@ Plans:
   2. El Dockerfile construye una imagen que incluye navegadores Playwright (versión pineada), FFmpeg y Poppler — el pipeline completo en modo `auto` funciona dentro del contenedor
   3. `pytest` pasa los tres tests mínimos: storyboard con API mockeada, director de timing (reparto + presupuesto), render de una slide a PNG
   4. El README explica la instalación (Playwright browsers, FFmpeg, WhisperX), la configuración de claves API y ejemplos de uso con los flags principales
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 07-01: pyproject.toml (uv, entry point avideo, dependencias pineadas) + Dockerfile (playwright:v1.60.0-noble + FFmpeg + Poppler)
-- [ ] 07-02: tests/test_storyboard.py (mock Anthropic) + tests/test_timing.py + tests/test_slides_render.py (smoke PNG)
-- [ ] 07-03: README.md (instalación, configuración, ejemplos de uso)
+- [ ] 07-01-PLAN.md — [Wave 1] Verificar PKG-01 (uv sync + entry point avideo + uv.lock commiteado) + Dockerfile NEW (PKG-02: base playwright v1.60.0-noble pineada + ffmpeg + poppler-utils + COPY uv + uv sync --frozen --no-dev + ENTRYPOINT avideo; torch/whisperx fuera) + .dockerignore
+- [ ] 07-02-PLAN.md — [Wave 1] Verificar/extender los 3 tests mínimos (TEST-01 storyboard con Anthropic mockeado, TEST-02 timing reparto exacto + word budget, TEST-03 render slide PNG 1920×1080) + guarda de regresión (suite completa verde ≥303)
+- [ ] 07-03-PLAN.md — [Wave 1] README.md NEW (DOC-01: instalación uv/playwright/ffmpeg/poppler + nota WhisperX, config .env ANTHROPIC/ELEVENLABS, uso con flags REALES de cli.py + ejemplos, modos/niveles, Docker)
 
 ## Progress
 
