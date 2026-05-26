@@ -18,7 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4: Voz + Subtítulos** - ElevenLabs TTS con timestamps + modo record + WhisperX (alineación) + SRT/VTT (completed 2026-05-25)
 - [x] **Phase 5: Montaje + QA** - FFmpeg concat + crossfade + loudnorm + quemado de subtítulos + informe QA (completed 2026-05-26)
 - [x] **Phase 6: Slides Hybrid/Manual + Verificador** - Propuesta de diseño + ingesta de slides del usuario + verificador Claude Vision (completed 2026-05-26)
-- [ ] **Phase 7: Empaquetado + Tests + Docs** - pyproject.toml/uv + Dockerfile + pytest mínimos + README
+- [x] **Phase 7: Empaquetado + Tests + Docs** - pyproject.toml/uv + Dockerfile + pytest mínimos + README (completed 2026-05-26)
 
 ## Phase Details
 
@@ -144,4 +144,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 4. Voz + Subtítulos | 3/3 | Complete    | 2026-05-25 |
 | 5. Montaje + QA | 2/2 | Complete    | 2026-05-26 |
 | 6. Slides Hybrid/Manual + Verificador | 2/2 | Complete    | 2026-05-26 |
-| 7. Empaquetado + Tests + Docs | 0/3 | Not started | - |
+| 7. Empaquetado + Tests + Docs | 3/3 | Complete    | 2026-05-26 |
