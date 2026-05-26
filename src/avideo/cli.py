@@ -13,10 +13,19 @@ from pathlib import Path
 from typing import Annotated, Optional
 
 import typer
+from dotenv import load_dotenv
 from pydantic import ValidationError
 
-from avideo.models.config import RunConfig, SlidesMode, VoiceMode
-from avideo.utils.rich_ui import setup_logging, show_validation_error
+# Source .env from the current working directory into os.environ before any
+# integration module is imported, so the Anthropic/ElevenLabs SDKs (which read
+# ANTHROPIC_API_KEY / ELEVENLABS_API_KEY from os.environ at client-construction
+# time) see the keys. Existing env vars take precedence (override=False), so
+# CI/Docker setups that set vars explicitly are unaffected. Silent no-op if no
+# .env exists — matches the README's "optional .env" model.
+load_dotenv(override=False)
+
+from avideo.models.config import RunConfig, SlidesMode, VoiceMode  # noqa: E402
+from avideo.utils.rich_ui import setup_logging, show_validation_error  # noqa: E402
 
 app = typer.Typer(
     rich_markup_mode="rich",
