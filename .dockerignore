@@ -1,0 +1,13 @@
+.git
+.gitignore
+.venv
+__pycache__
+*.pyc
+workdir/
+.planning/
+.env
+*.mp4
+*.wav
+*.mp3
+Apuntes, información extra*
+tests/
