@@ -159,3 +159,120 @@ class TestCallStructured:
         finally:
             if orig is not None:
                 os.environ["ANTHROPIC_API_KEY"] = orig
+
+
+# ---------------------------------------------------------------------------
+# Tests for call_structured_with_images (vision helper) — Wave-0 RED scaffold
+# ---------------------------------------------------------------------------
+
+
+class TestCallStructuredWithImages:
+    """Tests for the call_structured_with_images() vision helper (VERIFY-01)."""
+
+    def test_builds_image_block_before_text(self, mocker, tmp_path):
+        """Images appear before the text block in the content list (images-before-text)."""
+        from pathlib import Path
+
+        from avideo.models.verification import SlideVerdict
+        from avideo.integrations.anthropic import call_structured_with_images
+
+        input_data = {"slide_index": 0, "status": "ok", "issues": [], "suggestions": []}
+        fake_msg = _make_message([_make_tool_use_block("emit_verdict", input_data)])
+        fake_client = mocker.MagicMock()
+        fake_client.messages.create.return_value = fake_msg
+
+        mocker.patch("avideo.integrations.anthropic._get_client", return_value=fake_client)
+        # Patch downscale_png_for_api at the integration module boundary
+        mocker.patch(
+            "avideo.integrations.anthropic.downscale_png_for_api",
+            return_value="ZkFLRQ==",
+        )
+
+        result = call_structured_with_images(
+            system="You are a slide auditor.",
+            user="audit",
+            image_paths=[Path("a.png")],
+            tool_name="emit_verdict",
+            tool_description="Emit a per-slide verification verdict.",
+            output_model=SlideVerdict,
+        )
+
+        call_kwargs = fake_client.messages.create.call_args.kwargs
+        content = call_kwargs["messages"][0]["content"]
+
+        # First block must be the image block
+        assert content[0]["type"] == "image"
+        assert content[0]["source"]["type"] == "base64"
+        assert content[0]["source"]["media_type"] == "image/png"
+        assert content[0]["source"]["data"] == "ZkFLRQ=="
+
+        # Last block must be the text block
+        assert content[-1]["type"] == "text"
+        assert content[-1]["text"] == "audit"
+
+        # tool_choice must force the specific tool
+        assert call_kwargs["tool_choice"] == {"type": "tool", "name": "emit_verdict"}
+
+    def test_returns_validated_model(self, mocker, tmp_path):
+        """call_structured_with_images returns a validated Pydantic model from tool_use input."""
+        from pathlib import Path
+
+        from avideo.models.verification import SlideVerdict
+        from avideo.integrations.anthropic import call_structured_with_images
+
+        input_data = {
+            "slide_index": 2,
+            "status": "warning",
+            "issues": ["Missing chart"],
+            "suggestions": ["Add bar chart"],
+        }
+        fake_msg = _make_message([_make_tool_use_block("emit_verdict", input_data)])
+        fake_client = mocker.MagicMock()
+        fake_client.messages.create.return_value = fake_msg
+
+        mocker.patch("avideo.integrations.anthropic._get_client", return_value=fake_client)
+        mocker.patch(
+            "avideo.integrations.anthropic.downscale_png_for_api",
+            return_value="ZkFLRQ==",
+        )
+
+        result = call_structured_with_images(
+            system="system",
+            user="user",
+            image_paths=[Path("slide.png")],
+            tool_name="emit_verdict",
+            tool_description="Emit verdict.",
+            output_model=SlideVerdict,
+        )
+
+        assert isinstance(result, SlideVerdict)
+        assert result.status == "warning"
+        assert result.slide_index == 2
+
+    def test_raises_when_no_tool_use(self, mocker, tmp_path):
+        """call_structured_with_images raises RuntimeError when no tool_use block is returned."""
+        from pathlib import Path
+
+        from avideo.models.verification import SlideVerdict
+        from avideo.integrations.anthropic import call_structured_with_images
+
+        # Response has only a text block — no tool_use
+        fake_msg = _make_message([_make_text_block("I cannot audit visually.")])
+        fake_client = mocker.MagicMock()
+        fake_client.messages.create.return_value = fake_msg
+
+        mocker.patch("avideo.integrations.anthropic._get_client", return_value=fake_client)
+        mocker.patch(
+            "avideo.integrations.anthropic.downscale_png_for_api",
+            return_value="ZkFLRQ==",
+        )
+
+        with pytest.raises(RuntimeError, match="emit_verdict"):
+            call_structured_with_images(
+                system="system",
+                user="user",
+                image_paths=[Path("slide.png")],
+                tool_name="emit_verdict",
+                tool_description="Emit verdict.",
+                output_model=SlideVerdict,
+            )

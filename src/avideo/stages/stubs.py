@@ -57,6 +57,9 @@ from avideo.stages.align import AlignStage
 from avideo.stages.subtitles import SubtitlesStage
 from avideo.stages.voice import VoiceStage
 
+# Real Phase-6 verify stage implementation (replacing VerifyStub in PIPELINE_STAGES)
+from avideo.stages.verify_slides import VerifyStage
+
 # Real Phase-5 stage implementation (replacing AssembleStub in PIPELINE_STAGES)
 from avideo.stages.assemble import AssembleStage
 
@@ -292,7 +295,7 @@ PIPELINE_STAGES: list = [
     TimingStage(),        # Phase 2: real timing apportionment (was TimingStub)
     ScriptwriterStage(),  # Phase 2: real LLM scriptwriter (was ScriptwriterStub)
     SlidesDispatchStage(),  # Phase 6: dispatcher (was SlidesAutoStage()) — stage_name='slides'
-    VerifyStub(),         # Phase 6: placeholder
+    VerifyStage(),         # Phase 6: real (was VerifyStub) — stage_name='verify'
     VoiceStage(),         # Phase 4: real TTS dispatcher (was VoiceStub) — stage_name='voice'
     AlignStage(),         # Phase 4: real alignment (was AlignStub) — stage_name='align'
     SubtitlesStage(),     # Phase 4: real subtitle gen (was SubsStub) — stage_name='subs'
