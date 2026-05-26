@@ -51,14 +51,14 @@ Requisitos del release inicial. Cada uno se mapea a fases del roadmap.
 - [x] **SLIDE-01**: En modo `auto`, cada slide del storyboard se renderiza a PNG 1920×1080 desde HTML (Jinja2 + `theme.yaml`) con Playwright
 - [x] **SLIDE-02**: Las slides usan solo iconos SVG (Lucide/Heroicons) y gráficos/diagramas generados por código (sin imágenes IA ni stock)
 - [x] **SLIDE-03**: El tema (paleta, tipografías, espaciado) se parametriza en `theme.yaml` y lo propone la IA
-- [ ] **SLIDE-04**: En modo `hybrid`, el sistema genera una propuesta de diseño por slide (brief + mockup opcional) en `workdir/design_proposal/`
-- [ ] **SLIDE-05**: En modos `hybrid`/`manual`, el usuario aporta slides en `workdir/slides_user/slide_XX.{png|pdf|pptx}` y el sistema las ingiere (rasterizando si vienen en .pptx/.pdf)
+- [x] **SLIDE-04**: En modo `hybrid`, el sistema genera una propuesta de diseño por slide (brief + mockup opcional) en `workdir/design_proposal/`
+- [x] **SLIDE-05**: En modos `hybrid`/`manual`, el usuario aporta slides en `workdir/slides_user/slide_XX.{png|pdf|pptx}` y el sistema las ingiere (rasterizando si vienen en .pptx/.pdf)
 
 ### VERIFY — Verificador de slides (visión)
 
-- [ ] **VERIFY-01**: En `hybrid`/`manual`, el verificador usa Claude con visión para comprobar por slide: cobertura del contenido del storyboard, fidelidad a la propuesta/tema, encaje con guion/timing y completitud (ni falta ni sobra)
-- [ ] **VERIFY-02**: El verificador emite un informe JSON por slide con estado (`ok`/`warning`/`fail`), problemas detectados y sugerencias concretas (`workdir/verification_report.json`)
-- [ ] **VERIFY-03**: Según el nivel: L1/L2 muestran el informe y permiten iterar (corregir→re-verificar); L3/L4 continúan si todo es `ok` y se detienen si hay `fail`; en modo `auto` no se ejecuta
+- [x] **VERIFY-01**: En `hybrid`/`manual`, el verificador usa Claude con visión para comprobar por slide: cobertura del contenido del storyboard, fidelidad a la propuesta/tema, encaje con guion/timing y completitud (ni falta ni sobra)
+- [x] **VERIFY-02**: El verificador emite un informe JSON por slide con estado (`ok`/`warning`/`fail`), problemas detectados y sugerencias concretas (`workdir/verification_report.json`)
+- [x] **VERIFY-03**: Según el nivel: L1/L2 muestran el informe y permiten iterar (corregir→re-verificar); L3/L4 continúan si todo es `ok` y se detienen si hay `fail`; en modo `auto` no se ejecuta
 
 ### VOICE — Voz
 
@@ -78,29 +78,29 @@ Requisitos del release inicial. Cada uno se mapea a fases del roadmap.
 
 ### ASMB — Montaje
 
-- [ ] **ASMB-01**: Monta el vídeo con FFmpeg (subprocess) sincronizando slides + audios usando duraciones reales medidas con `ffprobe` (no estimadas por WPM)
-- [ ] **ASMB-02**: Aplica transiciones crossfade configurables entre slides
-- [ ] **ASMB-03**: La salida por defecto es 1080p 16:9
+- [x] **ASMB-01**: Monta el vídeo con FFmpeg (subprocess) sincronizando slides + audios usando duraciones reales medidas con `ffprobe` (no estimadas por WPM)
+- [x] **ASMB-02**: Aplica transiciones crossfade configurables entre slides
+- [x] **ASMB-03**: La salida por defecto es 1080p 16:9
 
 ### QA — Control de calidad
 
-- [ ] **QA-01**: Compara la duración real del vídeo vs la objetivo y reporta la desviación
-- [ ] **QA-02**: Mide y normaliza el loudness con FFmpeg `loudnorm` (dos pasadas) y emite un informe
+- [x] **QA-01**: Compara la duración real del vídeo vs la objetivo y reporta la desviación
+- [x] **QA-02**: Mide y normaliza el loudness con FFmpeg `loudnorm` (dos pasadas) y emite un informe
 
 ### PKG — Empaquetado
 
-- [ ] **PKG-01**: El proyecto se instala con `pyproject.toml` gestionado con `uv`
-- [ ] **PKG-02**: Un `Dockerfile` reproducible incluye navegadores de Playwright (versión alineada con el paquete), FFmpeg y Poppler
+- [x] **PKG-01**: El proyecto se instala con `pyproject.toml` gestionado con `uv`
+- [x] **PKG-02**: Un `Dockerfile` reproducible incluye navegadores de Playwright (versión alineada con el paquete), FFmpeg y Poppler
 
 ### TEST — Tests mínimos
 
-- [ ] **TEST-01**: Test del storyboard con la API de Anthropic mockeada
-- [ ] **TEST-02**: Test del director de timing (reparto de duración + presupuesto de palabras)
-- [ ] **TEST-03**: Test de render de una slide a PNG
+- [x] **TEST-01**: Test del storyboard con la API de Anthropic mockeada
+- [x] **TEST-02**: Test del director de timing (reparto de duración + presupuesto de palabras)
+- [x] **TEST-03**: Test de render de una slide a PNG
 
 ### DOC — Documentación
 
-- [ ] **DOC-01**: `README.md` con instalación (Playwright browsers, FFmpeg, modelos WhisperX) y ejemplos de uso
+- [x] **DOC-01**: `README.md` con instalación (Playwright browsers, FFmpeg, modelos WhisperX) y ejemplos de uso
 
 ## v2 Requirements
 
