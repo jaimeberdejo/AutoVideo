@@ -207,8 +207,17 @@ def run_pipeline(config: RunConfig) -> None:
                     if mode == "auto":
                         pass  # verifier skipped/trivial — no gate (VERIFY-03)
                     elif config.level in (1, 2):
-                        # L1/L2: render report + pause to iterate
+                        # L1/L2: render report + pause to iterate.
                         _render_verification_report(report)
+                        if has_fail:
+                            # Do NOT fall through to mark_done — the iterate loop
+                            # requires the next run to re-verify. Stop cleanly so the
+                            # user can fix slides in slides_user/ and re-run.
+                            console.print(
+                                "[yellow]Fix the failing slides in slides_user/ and "
+                                "re-run to re-verify.[/yellow]"
+                            )
+                            raise typer.Exit(1)
                         pause_for_approval(
                             "verify",
                             reason=(

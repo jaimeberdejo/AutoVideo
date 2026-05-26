@@ -144,11 +144,16 @@ class SlidesHybridStage(CheckpointMixin):
                 max_tokens=2048,
             )
 
-            # Atomic write: tmp → os.replace (D-10; secondary artifact, not checkpoint)
+            # Atomic write: tmp → os.replace (D-10; secondary artifact, not checkpoint).
+            # Clean up the tmp file if the rename fails so no stray *.tmp is left behind.
             target = dp_dir / f"slide_{i:02d}.json"
             tmp = dp_dir / f"slide_{i:02d}.json.tmp"
-            tmp.write_text(brief.model_dump_json(indent=2), encoding="utf-8")
-            os.replace(tmp, target)
+            try:
+                tmp.write_text(brief.model_dump_json(indent=2), encoding="utf-8")
+                os.replace(tmp, target)
+            except OSError:
+                tmp.unlink(missing_ok=True)
+                raise
             logger.info("Wrote design proposal for slide %02d: %s", i, target)
 
         # Step 4: Pause for user approval
@@ -192,8 +197,7 @@ def _ingest_user_slides(
 
     Raises:
         RuntimeError: If any storyboard slide index has no matching file in
-            slides_user/ (only in ``mode="manual"``; hybrid callers handle
-            their own validation).
+            slides_user/ (raised for both hybrid and manual ingestion).
 
     Args:
         workdir: WorkdirManager providing path resolution.

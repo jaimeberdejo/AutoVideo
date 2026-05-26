@@ -110,6 +110,10 @@ def test_ingest_pdf_rasterizes(tmp_path: Path) -> None:
 
     mock_doc = MagicMock()
     mock_doc.__getitem__ = MagicMock(return_value=mock_page)
+    # ingest_slide now uses `with fitz.open(...) as doc:` — the context manager
+    # must yield the same configured doc.
+    mock_doc.__enter__ = MagicMock(return_value=mock_doc)
+    mock_doc.__exit__ = MagicMock(return_value=False)
 
     mock_fitz = MagicMock()
     mock_fitz.open.return_value = mock_doc

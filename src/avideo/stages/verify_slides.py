@@ -157,6 +157,15 @@ class VerifyStage(CheckpointMixin):
             s.slide_index: s.narration for s in script.slides
         }
 
+        # Parity guard: the slides checkpoint must have exactly one PNG per storyboard
+        # slide, else slides_out.png_paths[i] raises an opaque IndexError mid-loop.
+        if len(slides_out.png_paths) != n:
+            raise RuntimeError(
+                f"Slides checkpoint has {len(slides_out.png_paths)} PNG path(s) but "
+                f"storyboard has {n} slide(s) — checkpoints are inconsistent. "
+                f"Re-run the slides stage or clear the workdir."
+            )
+
         verdicts: list[SlideVerdict] = []
         for i, spec in enumerate(storyboard.slides):
             png = Path(slides_out.png_paths[i])

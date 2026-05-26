@@ -68,12 +68,19 @@ def ingest_slide(src: Path, out_png: Path) -> None:
         shutil.copy2(src, out_png)
 
     elif ext == ".pdf":
-        doc = fitz.open(str(src))
-        page = doc[0]
-        zoom = TARGET_WIDTH_PX / page.rect.width
-        pix = page.get_pixmap(matrix=fitz.Matrix(zoom, zoom), alpha=False)
-        pix.save(str(out_png))
-        doc.close()
+        # Context manager guarantees the document is closed even if rasterization
+        # raises (file-descriptor leak otherwise). Guard against zero-width pages
+        # (degenerate/corrupt PDFs) which would raise ZeroDivisionError on zoom.
+        with fitz.open(str(src)) as doc:
+            page = doc[0]
+            if page.rect.width <= 0:
+                raise ValueError(
+                    f"PDF page has non-positive width ({page.rect.width}): {src!r} "
+                    f"— file may be corrupt."
+                )
+            zoom = TARGET_WIDTH_PX / page.rect.width
+            pix = page.get_pixmap(matrix=fitz.Matrix(zoom, zoom), alpha=False)
+            pix.save(str(out_png))
 
     elif ext == ".pptx":
         raise RuntimeError(

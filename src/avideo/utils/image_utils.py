@@ -51,9 +51,10 @@ MEDIA_TYPE: str = "image/png"
 def downscale_png_for_api(png_path: Path) -> str:
     """Return a standard base64-encoded PNG, downscaled so the longest side ≤ 1568 px.
 
-    Opens the PNG at *png_path*, converts to RGB, downscales with Lanczos
-    resampling if the longest side exceeds ``MAX_LONG_SIDE``, saves to an
-    in-memory buffer, and encodes as standard base64 with no line breaks.
+    Opens the PNG at *png_path*, preserving its alpha channel (transparency is
+    NOT flattened to black), downscales with Lanczos resampling if the longest
+    side exceeds ``MAX_LONG_SIDE``, saves to an in-memory buffer, and encodes as
+    standard base64 with no line breaks.
 
     Small images (longest side ≤ 1568 px) are returned unchanged — no upscaling.
 
@@ -74,7 +75,15 @@ def downscale_png_for_api(png_path: Path) -> str:
         b64 = downscale_png_for_api(Path("workdir/slides/slide_00.png"))
         # b64 is a clean base64 string ready for an Anthropic image content block.
     """
-    img = Image.open(png_path).convert("RGB")
+    img = Image.open(png_path)
+    # Preserve the alpha channel — converting to RGB fills transparent regions with
+    # black, which would corrupt the pixels Claude sees and produce misleading verdicts.
+    # Only normalise exotic modes (e.g. "P" palette, "CMYK") that PNG can't round-trip
+    # cleanly: palette images expand to RGBA, everything else to RGB.
+    if img.mode in ("P", "PA"):
+        img = img.convert("RGBA")
+    elif img.mode not in ("RGB", "RGBA", "L", "LA"):
+        img = img.convert("RGB")
     w, h = img.size
 
     if max(w, h) > MAX_LONG_SIDE:
