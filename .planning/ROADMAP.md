@@ -49,7 +49,7 @@ Full phase detail: [milestones/v1.60.0-ROADMAP.md](milestones/v1.60.0-ROADMAP.md
 **Plans**: 5 plans
 
 Plans:
-- [ ] 08-01-PLAN.md — Wave 0: Test scaffolds for VOZ-02, VOZ-03, EXT-02, EXT-03 (3 new test files, RED until impl lands)
+- [x] 08-01-PLAN.md — Wave 0: Test scaffolds for VOZ-02, VOZ-03, EXT-02, EXT-03 (3 new test files, RED until impl lands)
 - [ ] 08-02-PLAN.md — Wave 1: Model layer — VoiceMode.openai + RunConfig new fields + pyproject.toml dep promotion
 - [ ] 08-03-PLAN.md — Wave 2a: OpenAI Audio integration — integrations/openai.py + stages/voice_openai.py + voice.py dispatcher
 - [ ] 08-04-PLAN.md — Wave 2b: Audio enhancement utility — utils/audio_enhance.py (afftdn + loudnorm, non-destructive)
@@ -128,7 +128,7 @@ Plans:
 | 5. Montaje + QA | v1.60.0 | 2/2 | Complete | 2026-05-26 |
 | 6. Slides Hybrid/Manual + Verificador | v1.60.0 | 2/2 | Complete | 2026-05-26 |
 | 7. Empaquetado + Tests + Docs | v1.60.0 | 3/3 | Complete | 2026-05-26 |
-| 8. Backend Integrations | v2.0.0 | 0/5 | Not started | - |
+| 8. Backend Integrations | v2.0.0 | 1/5 | In Progress|  |
 | 9. UI Foundation | v2.0.0 | 0/- | Not started | - |
 | 10. Contenido Page | v2.0.0 | 0/- | Not started | - |
 | 11. Guion + Slides Pages | v2.0.0 | 0/- | Not started | - |

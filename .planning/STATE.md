@@ -2,15 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0.0
 milestone_name: Studio Guiado
-status: roadmap_ready
-last_updated: "2026-05-29"
+status: executing
+stopped_at: Roadmap v2.0.0 created; ready for `/gsd-plan-phase 8`
+last_updated: "2026-05-29T13:41:57.416Z"
 last_activity: 2026-05-29
 progress:
   total_phases: 6
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_plans: 5
+  completed_plans: 1
+  percent: 20
 ---
 
 # Project State
@@ -20,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-29)
 
 **Core value:** A partir de unos bullets + una duración, obtener un vídeo narrado coherente y de alta calidad (slides + voz + subtítulos sincronizados) sin intervención manual obligatoria, con checkpoints opcionales de supervisión.
-**Current focus:** v2.0.0 Studio Guiado — roadmap listo, Phase 8 es la siguiente
+**Current focus:** Phase 8 — Backend Integrations
 
 ## Current Position
 
-Phase: Phase 8 — Backend Integrations (not started)
-Plan: —
-Status: Roadmap ready; awaiting plan phase
-Last activity: 2026-05-29 — Roadmap v2.0.0 created (Phases 8–13)
+Phase: 8 (Backend Integrations) — EXECUTING
+Plan: 2 of 5
+Status: Ready to execute
+Last activity: 2026-05-29
 
 ```
-Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (0/6 phases)
+Progress: [██░░░░░░░░] 20%
 ```
 
 ## Performance Metrics
@@ -58,6 +59,7 @@ Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (0/6
 - Trend: —
 
 *Updated after each plan completion*
+| Phase 08-backend-integrations P01 | 5 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -75,6 +77,8 @@ Recent decisions affecting current work (v2.0.0):
 - **Background music:** `amix=inputs=2:normalize=0` always; loudnorm single pass on final mix only when music present; per-narration loudnorm skipped when bg_music set
 - **File upload:** write to workdir immediately on receipt (Streamlit discards UploadedFile on next rerun if not written)
 - **invalidate_downstream:** implement in WorkdirManager before building any editable widget; deletes done markers for all stages after a given stage
+- [Phase ?]: Wave 0 scaffold — deferred imports allow 21 tests to collect before implementation modules exist
+- [Phase ?]: Mock seam for OpenAI integration is _get_client (lazy singleton) — mirrors elevenlabs pattern for import-safety
 
 ### Pending Todos
 
@@ -103,6 +107,6 @@ Carried forward from v1.60.0 (non-blocking):
 
 ## Session Continuity
 
-Last session: 2026-05-29
+Last session: 2026-05-29T13:41:27.082Z
 Stopped at: Roadmap v2.0.0 created; ready for `/gsd-plan-phase 8`
 Resume file: None

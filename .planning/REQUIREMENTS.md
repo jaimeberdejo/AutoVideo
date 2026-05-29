@@ -42,14 +42,14 @@
 ### VOZ — Fase 4 Voz
 
 - [ ] **VOZ-01**: El usuario elige el proveedor de narración: ElevenLabs, OpenAI Audio (nuevo) o subir sus propias grabaciones
-- [ ] **VOZ-02**: OpenAI Audio sintetiza la voz por slide; como no entrega timestamps, se hace un round-trip STT (`whisper-1`, word-level) para mantener subtítulos sincronizados
-- [ ] **VOZ-03**: Para audios subidos por el usuario, un botón aplica mejora automática (denoise + normalización, FFmpeg) con preview no destructivo antes de aplicar; la alineación de subtítulos usa el audio original sin procesar
+- [x] **VOZ-02**: OpenAI Audio sintetiza la voz por slide; como no entrega timestamps, se hace un round-trip STT (`whisper-1`, word-level) para mantener subtítulos sincronizados
+- [x] **VOZ-03**: Para audios subidos por el usuario, un botón aplica mejora automática (denoise + normalización, FFmpeg) con preview no destructivo antes de aplicar; la alineación de subtítulos usa el audio original sin procesar
 
 ### EXT — Fase 5 Extras
 
 - [ ] **EXT-01**: El usuario elige qué extras añadir: subtítulos, transiciones, música de fondo
-- [ ] **EXT-02**: El usuario aporta una pista de música de fondo (archivo) que se mezcla bajo la narración con ducking + fade in/out
-- [ ] **EXT-03**: La música no degrada el loudness de la narración — una sola pasada loudnorm sobre la mezcla final (`amix normalize=0` + volumen explícito; fade desde la duración real medida por ffprobe)
+- [x] **EXT-02**: El usuario aporta una pista de música de fondo (archivo) que se mezcla bajo la narración con ducking + fade in/out
+- [x] **EXT-03**: La música no degrada el loudness de la narración — una sola pasada loudnorm sobre la mezcla final (`amix normalize=0` + volumen explícito; fade desde la duración real medida por ffprobe)
 
 ### ASM — Fase 6 Ensamblaje
 
@@ -109,11 +109,11 @@ Qué fases cubren qué requisitos.
 | SLD-02 | Phase 11 | Pending |
 | SLD-03 | Phase 11 | Pending |
 | VOZ-01 | Phase 12 | Pending |
-| VOZ-02 | Phase 8 | Pending |
-| VOZ-03 | Phase 8 | Pending |
+| VOZ-02 | Phase 8 | Complete |
+| VOZ-03 | Phase 8 | Complete |
 | EXT-01 | Phase 13 | Pending |
-| EXT-02 | Phase 8 | Pending |
-| EXT-03 | Phase 8 | Pending |
+| EXT-02 | Phase 8 | Complete |
+| EXT-03 | Phase 8 | Complete |
 | ASM-01 | Phase 13 | Pending |
 | ASM-02 | Phase 13 | Pending |
 
