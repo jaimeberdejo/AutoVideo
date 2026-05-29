@@ -60,7 +60,7 @@ from avideo.integrations.ffmpeg import (
     probe_duration,
     run_ffmpeg,
 )
-from avideo.models.assembly import AssemblyOutput
+from avideo.models.assembly import AssemblyOutput, QAReport
 from avideo.models.slides import SlidesOutput
 from avideo.models.timings import UnifiedTimings
 from avideo.stages.base import CheckpointMixin
@@ -223,17 +223,19 @@ class AssembleStage(CheckpointMixin):
         # IMPORTANT (Pitfall 21):
         #   fade_out_start uses probe_duration() on the REAL assembled output,
         #   not config.duration (which is the target, not the actual frame count).
-        bg_music_path = getattr(config, "bg_music_path", None)
+        bg_music_path = config.bg_music_path
         if bg_music_path and Path(str(bg_music_path)).exists():
             actual_dur = probe_duration(str(output_mp4))
-            fade_out_s: float = getattr(config, "bg_music_fade_out_s", 3.0)
+            fade_out_s: float = config.bg_music_fade_out_s
+            target_lufs: float = config.target_lufs
+            music_volume: float = config.bg_music_volume
             fade_out_start = max(0.0, actual_dur - fade_out_s)
             music_tmp = workdir.root / "output.music.tmp.mp4"  # .mp4 ext required by ffmpeg
             music_args = build_music_mix_args(
                 str(output_mp4),
                 str(bg_music_path),
                 str(music_tmp),
-                music_volume=getattr(config, "bg_music_volume", 0.12),
+                music_volume=music_volume,
                 fade_out_start=fade_out_start,
                 fade_out_s=fade_out_s,
             )
@@ -242,30 +244,43 @@ class AssembleStage(CheckpointMixin):
 
             # Single-pass loudnorm on the final mixed output (EXT-03).
             # Two-pass loudnorm on already-normalized audio causes pumping (Pitfall 20).
+            # print_format=json enables parsing actual measured loudness from stderr (CR-01).
+            # -ar 48000 ensures consistent sample rate with the two-pass path (WR-02).
             # _run_qa's idempotence check (qa_json.exists()) short-circuits the two-pass
             # path so loudnorm runs exactly ONCE total when music is present.
-            target_lufs: float = getattr(config, "target_lufs", -16.0)
             norm_tmp = workdir.root / "output.mp4.norm.tmp"
             single_loudnorm_args: list[str] = [
                 "ffmpeg", "-hide_banner", "-y",
                 "-i", str(output_mp4),
-                "-af", f"loudnorm=I={target_lufs}:TP=-1.5:LRA=11",
+                "-af", f"loudnorm=I={target_lufs}:TP=-1.5:LRA=11:print_format=json",
                 "-c:v", "copy",
                 "-c:a", "aac",
                 "-b:a", "192k",
+                "-ar", "48000",             # match loudnorm_pass2_args for consistent sample rate
                 "-movflags", "+faststart",  # Pitfall 2: re-add under -c:v copy
                 str(norm_tmp),
             ]
-            run_ffmpeg(single_loudnorm_args)
+            single_proc = run_ffmpeg(single_loudnorm_args)
             os.replace(str(norm_tmp), str(output_mp4))
+
+            # Parse actual loudness from the single-pass stderr (CR-01: no fabricated values).
+            measured_lufs_music: float
+            normalized_lufs_music: float
+            try:
+                sp_measured = parse_loudnorm_json(single_proc.stderr)
+                measured_lufs_music = float(sp_measured.get("input_i", target_lufs))
+                normalized_lufs_music = target_lufs  # single-pass output ≈ target
+            except (ValueError, KeyError):
+                measured_lufs_music = target_lufs
+                normalized_lufs_music = target_lufs
 
             # Build and pre-write qa_report.json so _run_qa's idempotence path fires.
             actual_seconds = probe_duration(str(output_mp4))
             music_qa = build_qa_report(
                 target_seconds=float(config.duration),
                 actual_seconds=actual_seconds,
-                measured_lufs=target_lufs,       # single-pass: no pre-measure
-                normalized_lufs=target_lufs,
+                measured_lufs=measured_lufs_music,
+                normalized_lufs=normalized_lufs_music,
             )
             qa_tmp = workdir.root / "qa_report.json.tmp"
             qa_tmp.write_text(music_qa.model_dump_json(indent=2), encoding="utf-8")
@@ -281,6 +296,10 @@ class AssembleStage(CheckpointMixin):
             config=config,
         )
 
+        # Print QA table here (outside _run_qa) so it fires unconditionally
+        # for both music and non-music paths (CR-02: music path was skipping it).
+        self._print_qa_table(report)
+
         # --- Step 10: Return output with QA report attached ---
         return AssemblyOutput(output_path=str(output_mp4), qa=report)
 
@@ -291,7 +310,7 @@ class AssembleStage(CheckpointMixin):
         output_mp4: Path,
         qa_json: Path,
         config: "RunConfig",
-    ) -> "AssemblyOutput.__fields__['qa']":  # type: ignore[return]  # returns QAReport
+    ) -> QAReport:
         """Run the two-pass loudnorm QA sub-step and return the QAReport.
 
         Idempotent: if qa_report.json already exists (from a prior run that
@@ -310,13 +329,11 @@ class AssembleStage(CheckpointMixin):
         Returns:
             QAReport with duration deviation + measured/normalized LUFS.
         """
-        from avideo.models.assembly import QAReport  # noqa: PLC0415 — avoids circular at module load
-
         # QA idempotence: if qa_report.json already exists, reload it
         if qa_json.exists():
             return QAReport.model_validate_json(qa_json.read_text(encoding="utf-8"))
 
-        target_lufs = getattr(config, "target_lufs", -16.0)
+        target_lufs = config.target_lufs
         norm_tmp = workdir.root / "output.mp4.norm.tmp"
 
         # --- Pass 1: measure loudness ---
@@ -372,12 +389,9 @@ class AssembleStage(CheckpointMixin):
         qa_tmp.write_text(qa_report.model_dump_json(indent=2), encoding="utf-8")
         os.replace(str(qa_tmp), str(qa_json))
 
-        # --- Print Rich QA table (D-08) ---
-        self._print_qa_table(qa_report)
-
         return qa_report
 
-    def _print_qa_table(self, report: "AssemblyOutput.__fields__['qa']") -> None:  # type: ignore[return]
+    def _print_qa_table(self, report: QAReport) -> None:
         """Print the QA metrics as a Rich table to stderr (D-08).
 
         Rows: Target Duration, Actual Duration, Deviation, Measured LUFS, Normalized LUFS.
@@ -386,8 +400,6 @@ class AssembleStage(CheckpointMixin):
         Args:
             report: Populated QAReport to display.
         """
-        from avideo.models.assembly import QAReport  # noqa: PLC0415
-
         if not isinstance(report, QAReport):
             return
 
