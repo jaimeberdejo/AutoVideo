@@ -33,7 +33,7 @@ Full phase detail: [milestones/v1.60.0-ROADMAP.md](milestones/v1.60.0-ROADMAP.md
 - [x] **Phase 10: Contenido Page** — Fase 1 wizard: intake de tema + duración + auto-generación de bullets + gate de aprobación (completed 2026-05-29)
 - [x] **Phase 11: Guion + Slides Pages** — Fases 2 y 3 wizard: guion editable + variaciones + slides interactivas + verificador QC (completed 2026-05-29)
 - [x] **Phase 12: Voz Page** — Fase 4 wizard: selección de proveedor de narración + previews de audio + gate de aprobación (completed 2026-05-29)
-- [ ] **Phase 13: Extras + Ensamblaje + Polish** — Fases 5–6 wizard: extras + montaje final + preview/descarga + packaging y tests
+- [x] **Phase 13: Extras + Ensamblaje + Polish** — Fases 5–6 wizard: extras + montaje final + preview/descarga + packaging y tests (completed 2026-05-29)
 
 ## Phase Details
 
@@ -142,7 +142,7 @@ Plans:
 - [x] 13-01-PLAN.md — Wave 0: RED test scaffold (write_uploaded_music, extras_to_run_config, read_qa_report)
 - [x] 13-02-PLAN.md — Wave 1: Extend pipeline_ops + replace phase_5_extras.py (EXT-01)
 - [x] 13-03-PLAN.md — Wave 2: Replace phase_6_ensamble.py (ASM-01, ASM-02)
-- [ ] 13-04-PLAN.md — Wave 3: Dockerfile EXPOSE 8501 + page smoke tests + human checkpoint
+- [x] 13-04-PLAN.md — Wave 3: Dockerfile EXPOSE 8501 + page smoke tests + human checkpoint
 **UI hint**: yes
 
 ## Progress
@@ -161,4 +161,4 @@ Plans:
 | 10. Contenido Page | v2.0.0 | 3/3 | Complete   | 2026-05-29 |
 | 11. Guion + Slides Pages | v2.0.0 | 4/4 | Complete   | 2026-05-29 |
 | 12. Voz Page | v2.0.0 | 3/3 | Complete   | 2026-05-29 |
-| 13. Extras + Ensamblaje + Polish | v2.0.0 | 3/4 | In Progress|  |
+| 13. Extras + Ensamblaje + Polish | v2.0.0 | 4/4 | Complete   | 2026-05-29 |
