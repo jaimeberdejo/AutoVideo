@@ -22,6 +22,7 @@ class VoiceMode(str, Enum):
 
     elevenlabs = "elevenlabs"
     record = "record"
+    openai = "openai"
 
 
 class SlidesMode(str, Enum):
@@ -69,6 +70,33 @@ class RunConfig(BaseSettings):
     target_lufs: float = Field(
         default=-16.0,
         description="EBU R128 loudness target for two-pass loudnorm in LUFS (D-06)",
+    )
+
+    # OpenAI TTS settings (Phase 8 — VOZ-02)
+    openai_tts_model: str = Field(
+        default="tts-1",
+        description="OpenAI TTS model id ('tts-1' for low latency, 'gpt-4o-mini-tts' for better prosody)",
+    )
+    openai_tts_voice: str = Field(
+        default="nova",
+        description="OpenAI TTS voice (alloy|echo|fable|onyx|nova|shimmer)",
+    )
+
+    # Background music settings (Phase 8 — EXT-02/EXT-03)
+    bg_music_path: Optional[Path] = Field(
+        default=None,
+        description="Path to background music file; None = no music mixing",
+    )
+    bg_music_volume: float = Field(
+        default=0.12,
+        ge=0.0,
+        le=1.0,
+        description="Music linear volume before amix (0.0-1.0; 0.12 ~ -18 dBFS)",
+    )
+    bg_music_fade_out_s: float = Field(
+        default=3.0,
+        ge=0.0,
+        description="Music fade-out duration in seconds (computed from ffprobe-measured actual duration)",
     )
 
     # Flags
