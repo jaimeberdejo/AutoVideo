@@ -8,6 +8,20 @@ Aplicación de línea de comandos en Python 3.11+ que automatiza de principio a 
 
 A partir de unos bullets + una duración, obtener **un vídeo narrado coherente y de alta calidad (slides + voz + subtítulos sincronizados) sin intervención manual obligatoria** — y con puntos de control opcionales cuando se desee supervisar.
 
+## Current Milestone: v2.0.0 Studio Guiado
+
+**Goal:** Una UI Streamlit local que guía al usuario por las 6 fases de creación del vídeo con validación humana obligatoria entre fases (no avanza hasta confirmar), orquestando el pipeline existente como motor headless.
+
+**Target features:**
+- **UI Streamlit guiada** (local, `localhost`, un usuario) como superficie principal — wizard de 6 fases con *human-check* en cada paso y previews en vivo (bullets, guion editable, thumbnails de slides, vídeo final).
+- **Fase 1 – Contenido:** intake de tema + duración; bullets aportados por el usuario o auto-generados por Claude desde el tema (aprobar/editar).
+- **Fase 2 – Guion + slides:** nº de slides derivado de la duración + guion por slide; revisión interactiva (editar / pedir variaciones / iterar hasta OK).
+- **Fase 3 – Diapositivas:** generadas por la app (revisión interactiva: editar / variaciones / iterar) o subidas por el usuario (control de calidad con el verificador Claude Vision que avisa de discrepancias con el esquema/guion).
+- **Fase 4 – Voz:** ElevenLabs, OpenAI Audio (nuevo), grabaciones propias.
+- **Fase 5 – Extras:** subtítulos, música de fondo (archivo del usuario, con ducking + fades), transiciones.
+- **Fase 6 – Ensamblaje:** montaje automático sincronizado (slide ↔ audio); preview y descarga del vídeo final en la UI.
+- **CLI `generate` conservado como motor headless** que la UI orquesta (el pipeline no se reescribe).
+
 ## Requirements
 
 ### Validated
@@ -38,9 +52,19 @@ A partir de unos bullets + una duración, obtener **un vídeo narrado coherente 
 
 ### Active
 
-<!-- Alcance del siguiente milestone. Vacío: no hay milestone definido tras v1.60.0. -->
+<!-- Alcance del milestone v2.0.0 Studio Guiado. Hipótesis hasta construir y validar. -->
 
-(Ninguno — v1.60.0 enviado. Usa `/gsd-new-milestone` para definir el próximo alcance.)
+- [ ] UI Streamlit local (single-user, `localhost`) como superficie principal del flujo
+- [ ] Wizard de 6 fases con validación humana obligatoria entre fases (no avanza hasta confirmar)
+- [ ] Previews en vivo en la UI: bullets, guion por slide editable, thumbnails de slides, vídeo final reproducible/descargable
+- [ ] Fase 1: auto-generación de bullets desde un tema (Claude) + aprobar/editar
+- [ ] Fase 2: revisión interactiva del guion (editar texto / pedir variaciones / iterar hasta OK)
+- [ ] Fase 3: slides generadas por la app con revisión interactiva (editar / variaciones / iterar)
+- [ ] Fase 3: slides subidas por el usuario con control de calidad (verificador Claude Vision avisa de discrepancias)
+- [ ] Fase 4: OpenAI Audio como tercer proveedor de voz (junto a ElevenLabs y record)
+- [ ] Fase 5: música de fondo desde archivo del usuario (mezcla con ducking + fades en FFmpeg)
+- [ ] Fase 6: ensamblaje automático sincronizado con preview/descarga en la UI
+- [ ] CLI `generate` conservado como motor headless orquestado por la UI
 
 ### Out of Scope
 
@@ -58,7 +82,8 @@ A partir de unos bullets + una duración, obtener **un vídeo narrado coherente 
 ## Context
 
 - **Estado actual (post-v1.60.0):** Pipeline MVP completo y enviado — `avideo generate` recorre context → storyboard → timing → scriptwriter → slides → verify → voice → align → subs → assemble end-to-end. ~7.148 LOC Python, 303 tests verdes (todas las APIs/binarios externos mockeados), instalable con `uv` y reproducible en Docker. Auditoría de milestone: PASSED.
-- **Foco siguiente milestone:** sin definir. v1.60.0 está enviado; el próximo alcance se decidirá con `/gsd-new-milestone`. (La idea previa de medios del usuario en `auto` — capturas/vídeo, antiguas Phases 8–9 — se retiró del roadmap el 2026-05-29.)
+- **Foco milestone v2.0.0 (Studio Guiado):** envolver el pipeline existente en una UI Streamlit local que guía las 6 fases con validación humana. El pipeline (CLI `generate`) se mantiene como motor headless; lo nuevo es la capa UI + estado/puente con los checkpoints de `workdir/`, theme→bullets, OpenAI Audio, y mezcla de música de fondo. (La idea previa de medios del usuario en `auto` — antiguas Phases 8–9 — se retiró del roadmap el 2026-05-29.)
+- **Decisión UI:** Streamlit (web local), no FastAPI+frontend ni TUI — prioriza rapidez de implementación y mantener todo en Python; la UI es una capa fina sobre etapas ya construidas.
 - **Deuda técnica conocida (no bloqueante):** imagen Docker verificada por inspección estática (recomendado `docker build` real antes del primer deploy); ingesta de `.pptx` de usuario es best-effort (rasterización offline no soportada → exportar PDF/PNG); WPM español de ElevenLabs (150) pendiente de calibración empírica; compatibilidad WhisperX/torch+pyannote en Docker por validar en la imagen opcional de `record`.
 - **Prioridades de diseño (en orden):** (1) máxima calidad de salida, (2) rapidez de implementación, (3) control total del código.
 - **Ejecución local** en Python, empaquetable en Docker.
@@ -78,6 +103,8 @@ A partir de unos bullets + una duración, obtener **un vídeo narrado coherente 
 - **Tech stack — Grabación/alineación:** `sounddevice`, `soundfile`; `whisperx` (solo modo record).
 - **Tech stack — Vídeo:** `ffmpeg` vía subprocess (no MoviePy).
 - **Tech stack — CLI/config/logs:** `typer`, `pydantic`, `pyyaml`, `rich`.
+- **Tech stack — UI (v2.0.0):** `streamlit` (web UI local, single-user); la UI orquesta el CLI/etapas como motor.
+- **Tech stack — TTS (v2.0.0):** además de `elevenlabs`, `openai` (OpenAI Audio API) como tercer proveedor de voz; `OPENAI_API_KEY` en `.env`.
 - **Tech stack — Tests/empaquetado:** `pytest`; `pyproject.toml` gestionado con `uv`; `Dockerfile`.
 - **Calidad de código:** modular, tipado, docstrings, manejo de errores claro, reanudable e idempotente.
 - **Visuales:** solo iconos SVG (Lucide/Heroicons) y gráficos por código; nada de imágenes IA ni stock.
@@ -117,4 +144,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-29 after v1.60.0 milestone (Phases 8–9 removed from scope)*
+*Last updated: 2026-05-29 — milestone v2.0.0 Studio Guiado started*

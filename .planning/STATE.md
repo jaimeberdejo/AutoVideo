@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.60.0
-milestone_name: MVP Pipeline
-status: milestone_shipped
-stopped_at: v1.60.0 shipped; Phases 8–9 removed from scope; no next milestone defined
-last_updated: "2026-05-29T12:08:16.203Z"
-last_activity: 2026-05-29 -- Phases 8–9 removed from roadmap/requirements
+milestone: v2.0.0
+milestone_name: Studio Guiado
+status: planning
+last_updated: "2026-05-29T12:36:41.826Z"
+last_activity: 2026-05-29
 progress:
-  total_phases: 7
-  completed_phases: 7
-  total_plans: 18
-  completed_plans: 18
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -21,16 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-29)
 
 **Core value:** A partir de unos bullets + una duración, obtener un vídeo narrado coherente y de alta calidad (slides + voz + subtítulos sincronizados) sin intervención manual obligatoria, con checkpoints opcionales de supervisión.
-**Current focus:** Ninguno — v1.60.0 enviado, sin milestone siguiente definido
+**Current focus:** v2.0.0 Studio Guiado — definiendo requisitos (UI Streamlit guiada sobre el pipeline)
 
 ## Current Position
 
-Phase: None (no active milestone)
+Phase: Not started (defining requirements)
 Plan: —
-Status: v1.60.0 shipped — no next milestone defined (Phases 8–9 removed from scope)
-Last activity: 2026-05-29
-
-Progress: [██████████] 100% (v1.60.0)
+Status: Defining requirements
+Last activity: 2026-05-29 — Milestone v2.0.0 started
 
 ## Performance Metrics
 
@@ -79,10 +76,12 @@ None yet.
 ### Blockers/Concerns
 
 Resolved during v1.60.0 (kept for history):
+
 - ~~Crossfade xfade/acrossfade FFmpeg~~ — resuelto e integrado en Phase 5.
 - ~~Compatibilidad torch + whisperx + pyannote.audio~~ — WhisperX/torch quedan fuera de la imagen Docker base; validar en la imagen opcional de `record`.
 
 Open (carried forward — see PROJECT.md tech debt):
+
 - WPM efectivo de ElevenLabs en español es estimado (150); requiere calibración empírica.
 
 ## Deferred Items
