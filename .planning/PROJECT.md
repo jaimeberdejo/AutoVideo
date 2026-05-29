@@ -17,7 +17,7 @@ A partir de unos bullets + una duración, obtener **un vídeo narrado coherente 
 - **Fase 1 – Contenido:** intake de tema + duración; bullets aportados por el usuario o auto-generados por Claude desde el tema (aprobar/editar).
 - **Fase 2 – Guion + slides:** nº de slides derivado de la duración + guion por slide; revisión interactiva (editar / pedir variaciones / iterar hasta OK).
 - **Fase 3 – Diapositivas:** generadas por la app (revisión interactiva: editar / variaciones / iterar) o subidas por el usuario (control de calidad con el verificador Claude Vision que avisa de discrepancias con el esquema/guion).
-- **Fase 4 – Voz:** ElevenLabs, OpenAI Audio (nuevo), grabaciones propias.
+- **Fase 4 – Voz:** ElevenLabs, OpenAI Audio (nuevo), grabaciones propias; para audios subidos, botón de mejora automática (denoise + normalización).
 - **Fase 5 – Extras:** subtítulos, música de fondo (archivo del usuario, con ducking + fades), transiciones.
 - **Fase 6 – Ensamblaje:** montaje automático sincronizado (slide ↔ audio); preview y descarga del vídeo final en la UI.
 - **CLI `generate` conservado como motor headless** que la UI orquesta (el pipeline no se reescribe).
@@ -62,6 +62,7 @@ A partir de unos bullets + una duración, obtener **un vídeo narrado coherente 
 - [ ] Fase 3: slides generadas por la app con revisión interactiva (editar / variaciones / iterar)
 - [ ] Fase 3: slides subidas por el usuario con control de calidad (verificador Claude Vision avisa de discrepancias)
 - [ ] Fase 4: OpenAI Audio como tercer proveedor de voz (junto a ElevenLabs y record)
+- [ ] Fase 4: para audios subidos por el usuario, botón de mejora automática de audio (denoise + normalización)
 - [ ] Fase 5: música de fondo desde archivo del usuario (mezcla con ducking + fades en FFmpeg)
 - [ ] Fase 6: ensamblaje automático sincronizado con preview/descarga en la UI
 - [ ] CLI `generate` conservado como motor headless orquestado por la UI
