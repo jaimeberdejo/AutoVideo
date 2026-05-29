@@ -14,33 +14,34 @@ A partir de unos bullets + una duración, obtener **un vídeo narrado coherente 
 
 <!-- Shipped y confirmado valioso. -->
 
-(Ninguno aún — greenfield, se valida al enviar)
+- ✓ CLI funcional con `typer`: `generate` con todos los flags (`--bullets`, `--duration`, `--voice`, `--slides-mode`, `--level`, `--context`, `--dry-run`) — v1.60.0
+- ✓ Orquestador propio, secuencial, con checkpoints reanudables/idempotentes y estado en `./workdir/` — v1.60.0
+- ✓ Ingestor de contexto opcional (`.pptx`/`.pdf`/`.md`) — v1.60.0
+- ✓ Storyboard generado con la API de Anthropic → JSON validado con Pydantic — v1.60.0
+- ✓ Director de timing: reparto por densidad + presupuesto de palabras (WPM configurable, 150) — v1.60.0
+- ✓ Guionista (Claude): narración por slide, tono de locución, idioma configurable (español) — v1.60.0
+- ✓ Slides modo `auto`: Jinja2 + `theme.yaml` → HTML → PNG 1920×1080 con Playwright; solo SVG + código — v1.60.0
+- ✓ Slides modo `hybrid`: propuesta de diseño por slide + ingesta de slides del usuario — v1.60.0
+- ✓ Slides modo `manual`: ingesta de slides aportadas por el usuario — v1.60.0
+- ✓ Verificador de slides (Claude visión) en `hybrid`/`manual`: informe JSON ok/warning/fail por slide — v1.60.0
+- ✓ Voz modo `elevenlabs`: timestamps por carácter (validación estrictamente-creciente + retry) — v1.60.0
+- ✓ Voz modo `record`: guion segmentado + grabación `sounddevice` / `slide_XX.wav` — v1.60.0
+- ✓ Alineador con WhisperX (solo modo `record`) — v1.60.0
+- ✓ Subtítulos `.srt`/`.vtt` desde timings (quemado opcional vía flag) — v1.60.0
+- ✓ Montador con FFmpeg directo: crossfade configurable, salida 1080p 16:9 — v1.60.0
+- ✓ QA: duración real vs objetivo + loudnorm EBU R128 dos pasadas + informe — v1.60.0
+- ✓ 4 niveles de automatización (L1–L4) — v1.60.0
+- ✓ `--dry-run` con estimación de tokens/coste sin generar audio/vídeo — v1.60.0
+- ✓ Empaquetado `pyproject.toml`/`uv` + `Dockerfile` (Playwright pineado + FFmpeg + Poppler) — v1.60.0
+- ✓ Tests mínimos `pytest` (storyboard mockeado, timing, render slide); suite de 303 tests verde — v1.60.0
+- ✓ `README.md` con instalación y ejemplos — v1.60.0
 
 ### Active
 
-<!-- Alcance actual. Hipótesis hasta que se construyan y validen. -->
+<!-- Alcance del siguiente milestone (Media en `auto`). Hipótesis hasta validar. -->
 
-- [ ] CLI funcional con `typer`: `generate --bullets bullets.yaml --duration 120 --voice elevenlabs --slides-mode hybrid --level 3 [--context deck.pdf]`
-- [ ] Orquestador propio, secuencial, con checkpoints reanudables y estado en `./workdir/`
-- [ ] Ingestor de contexto opcional (`.pptx`/`.pdf`/`.md`) que extrae texto de referencia
-- [ ] Storyboard generado con la API de Anthropic (Claude más reciente) → JSON estructurado
-- [ ] Director de timing: reparto de duración por slide + presupuesto de palabras (WPM configurable, por defecto 150)
-- [ ] Guionista (Claude): narración por slide, tono natural para locución, idioma configurable (por defecto español)
-- [ ] Generación de slides modo `auto`: Jinja2 + `theme.yaml` → HTML → PNG alta resolución con Playwright; solo iconos SVG (Lucide/Heroicons) y gráficos por código (sin imágenes IA)
-- [ ] Generación de slides modo `hybrid`: propuesta de diseño por slide en `workdir/design_proposal/` + ingesta de slides del usuario
-- [ ] Generación de slides modo `manual`: ingesta de slides aportadas por el usuario
-- [ ] Verificador de slides (Claude con visión) en `hybrid`/`manual`: informe JSON por slide (ok/warning/fail) sobre cobertura de contenido, fidelidad al diseño/tema, encaje con guion/timing y completitud
-- [ ] Voz modo `elevenlabs`: API con endpoint de timestamps (sin alineación posterior); modelo `eleven_multilingual_v2`, `voice_id` configurable
-- [ ] Voz modo `record`: exporta guion segmentado; grabación con `sounddevice` o `slide_XX.wav` aportado
-- [ ] Alineador con WhisperX (solo modo `record`)
-- [ ] Subtítulos `.srt`/`.vtt` desde timings (siempre generados; quemado en vídeo opcional vía flag)
-- [ ] Montador con FFmpeg directo (subprocess): slides + audios, crossfade configurable, subtítulos opcionales, salida 1080p 16:9 por defecto
-- [ ] QA: duración real vs objetivo, medición y normalización de loudness (FFmpeg `loudnorm`), informe
-- [ ] 4 niveles de automatización (L1–L4) que controlan las pausas de aprobación
-- [ ] `--dry-run` que estima tokens/coste y duración sin generar audio/vídeo
-- [ ] Empaquetado: `pyproject.toml` (gestión con `uv`) + `Dockerfile` (incluye navegadores Playwright + FFmpeg)
-- [ ] Tests mínimos con `pytest`: storyboard (API mockeada), director de timing, render de una slide
-- [ ] `README.md` con instalación (Playwright browsers, FFmpeg, modelos WhisperX) y ejemplos
+- [ ] **Screenshot en `auto`** (Phase 8): `visual_type: screenshot` con `image_path`/`caption`; `bullets.yaml` acepta `{text, image}` (SLIDE-06, SLIDE-07)
+- [ ] **Video clip en `auto`** (Phase 9): `visual_type: video` con `video_path`; el clip dicta la duración del slide, audio original silenciado + narración superpuesta, hold-last-frame, integración en el filtergraph FFmpeg (VIDEO-01..04)
 
 ### Out of Scope
 
@@ -57,6 +58,9 @@ A partir de unos bullets + una duración, obtener **un vídeo narrado coherente 
 
 ## Context
 
+- **Estado actual (post-v1.60.0):** Pipeline MVP completo y enviado — `avideo generate` recorre context → storyboard → timing → scriptwriter → slides → verify → voice → align → subs → assemble end-to-end. ~7.148 LOC Python, 303 tests verdes (todas las APIs/binarios externos mockeados), instalable con `uv` y reproducible en Docker. Auditoría de milestone: PASSED.
+- **Foco siguiente milestone:** insertar medios del usuario (capturas y clips .mp4) directamente en modo `auto`, sin obligar a cambiar a `hybrid`/`manual` (Phases 8–9).
+- **Deuda técnica conocida (no bloqueante):** imagen Docker verificada por inspección estática (recomendado `docker build` real antes del primer deploy); ingesta de `.pptx` de usuario es best-effort (rasterización offline no soportada → exportar PDF/PNG); WPM español de ElevenLabs (150) pendiente de calibración empírica; compatibilidad WhisperX/torch+pyannote en Docker por validar en la imagen opcional de `record`.
 - **Prioridades de diseño (en orden):** (1) máxima calidad de salida, (2) rapidez de implementación, (3) control total del código.
 - **Ejecución local** en Python, empaquetable en Docker.
 - **Slides pixel-perfect** vía HTML/CSS renderizado con Playwright; editable como CSS plano; export a `.pptx` con `python-pptx` como opción secundaria.
@@ -83,15 +87,18 @@ A partir de unos bullets + una duración, obtener **un vídeo narrado coherente 
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Idioma de narración por defecto: **español** (modelo `eleven_multilingual_v2`), configurable | Usuario hispanohablante; soporte multilingüe disponible | — Pending |
-| WPM por defecto: **150** (configurable) | Ritmo de locución natural estándar | — Pending |
-| Formato de salida por defecto: **16:9 1080p** | Estilo presentación/keynote; 9:16 queda como extensión futura | — Pending |
-| Subtítulos: **siempre `.srt`/`.vtt`**; quemado en vídeo = flag opcional | Flexibilidad: vídeo limpio por defecto, quemado bajo demanda | — Pending |
-| ElevenLabs: `voice_id` **placeholder configurable** + `ELEVENLABS_API_KEY` | Usuario aún no fija voz; se rellena en `config.yaml` | — Pending |
-| Orquestador **propio secuencial** (no n8n/LangGraph) | Control total y simplicidad sobre un pipeline lineal | — Pending |
-| Slides vía **HTML/CSS + Playlwright** (no partir de .pptx) | Control pixel-perfect y reproducibilidad | — Pending |
-| Montaje con **FFmpeg directo** (no MoviePy) | Rendimiento y control | — Pending |
-| Visuales **solo SVG + código** (sin imágenes IA/stock) | Consistencia visual y reproducibilidad | — Pending |
+| Idioma de narración por defecto: **español** (modelo `eleven_multilingual_v2`), configurable | Usuario hispanohablante; soporte multilingüe disponible | ✓ Good — v1.60.0 |
+| WPM por defecto: **150** (configurable) | Ritmo de locución natural estándar | ⚠️ Revisit — estimación pendiente de calibración empírica |
+| Formato de salida por defecto: **16:9 1080p** | Estilo presentación/keynote; 9:16 queda como extensión futura | ✓ Good — v1.60.0 |
+| Subtítulos: **siempre `.srt`/`.vtt`**; quemado en vídeo = flag opcional | Flexibilidad: vídeo limpio por defecto, quemado bajo demanda | ✓ Good — v1.60.0 |
+| ElevenLabs: `voice_id` **placeholder configurable** + `ELEVENLABS_API_KEY` | Usuario aún no fija voz; se rellena en `config.yaml` | ✓ Good — v1.60.0 |
+| Orquestador **propio secuencial** (no n8n/LangGraph) | Control total y simplicidad sobre un pipeline lineal | ✓ Good — v1.60.0 |
+| Slides vía **HTML/CSS + Playwright** (no partir de .pptx) | Control pixel-perfect y reproducibilidad | ✓ Good — v1.60.0 |
+| Montaje con **FFmpeg directo** (no MoviePy) | Rendimiento y control | ✓ Good — v1.60.0 |
+| Visuales **solo SVG + código** (sin imágenes IA/stock) | Consistencia visual y reproducibilidad | ✓ Good — v1.60.0 (Phases 8–9 añaden medios aportados por el usuario, no generados por IA) |
+| Validación de timestamps ElevenLabs **estrictamente crecientes** + retry≤3 antes de checkpoint | Mitiga el bug de timestamps "congelados" | ✓ Good — v1.60.0 |
+| Timing por **largest-remainder** (suma exacta + clamps) | Reparto determinista que cuadra con la duración objetivo | ✓ Good — v1.60.0 |
+| FFmpeg por **subprocess con lista de args** (nunca `shell=True`) | Seguridad y transparencia del comando | ✓ Good — v1.60.0 |
 
 ## Evolution
 
@@ -111,4 +118,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-25 after initialization*
+*Last updated: 2026-05-29 after v1.60.0 milestone*

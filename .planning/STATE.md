@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.60.0
-milestone_name: milestone
-status: milestone_complete
-stopped_at: Roadmap creado y aprobado — listo para planificar Phase 1
-last_updated: "2026-05-25T20:15:32.858Z"
-last_activity: 2026-05-25 -- Phase 05 execution started
+milestone_name: MVP Pipeline
+status: milestone_shipped
+stopped_at: v1.60.0 archived and tagged — ready to plan next milestone (Phases 8–9)
+last_updated: "2026-05-29T12:08:16.203Z"
+last_activity: 2026-05-29 -- v1.60.0 milestone completed and archived
 progress:
-  total_phases: 7
+  total_phases: 9
   completed_phases: 7
-  total_plans: 13
-  completed_plans: 11
+  total_plans: 18
+  completed_plans: 18
   percent: 100
 ---
 
@@ -18,19 +18,19 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-25)
+See: .planning/PROJECT.md (updated 2026-05-29)
 
 **Core value:** A partir de unos bullets + una duración, obtener un vídeo narrado coherente y de alta calidad (slides + voz + subtítulos sincronizados) sin intervención manual obligatoria, con checkpoints opcionales de supervisión.
-**Current focus:** Phase 05 — Montaje + QA
+**Current focus:** Próximo milestone — Media en `auto` (Phase 8 screenshots, Phase 9 video clips)
 
 ## Current Position
 
-Phase: 07
+Phase: 8 (next — not started)
 Plan: Not started
-Status: Milestone complete
-Last activity: 2026-05-26
+Status: v1.60.0 shipped — planning next milestone
+Last activity: 2026-05-29
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██████████] 100% (v1.60.0)
 
 ## Performance Metrics
 
@@ -78,9 +78,13 @@ None yet.
 
 ### Blockers/Concerns
 
-- WPM efectivo de ElevenLabs en español es estimado (150); requiere calibración empírica en Phase 4
-- Crossfade xfade/acrossfade FFmpeg requiere spike experimental con clip de test antes de integrar (Phase 5)
-- Compatibilidad torch + whisperx + pyannote.audio en Docker debe verificarse al construir el Dockerfile (Phase 7)
+Resolved during v1.60.0 (kept for history):
+- ~~Crossfade xfade/acrossfade FFmpeg~~ — resuelto e integrado en Phase 5.
+- ~~Compatibilidad torch + whisperx + pyannote.audio~~ — WhisperX/torch quedan fuera de la imagen Docker base; validar en la imagen opcional de `record`.
+
+Open (carried forward — see PROJECT.md tech debt):
+- WPM efectivo de ElevenLabs en español es estimado (150); requiere calibración empírica.
+- Phase 9 (video clips): el filtergraph de crossfades imagen↔vídeo/vídeo↔vídeo necesita un spike con clip de test antes de integrar en AssembleStage.
 
 ## Deferred Items
 
@@ -92,6 +96,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-25
-Stopped at: Roadmap creado y aprobado — listo para planificar Phase 1
+Last session: 2026-05-29
+Stopped at: v1.60.0 milestone archived and tagged — ready to plan next milestone (Phases 8–9) via /gsd-new-milestone
 Resume file: None
