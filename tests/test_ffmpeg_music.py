@@ -337,6 +337,119 @@ class TestAssembleMusicPath:
             f"Double normalization causes pumping artifacts. Calls: {loudnorm_calls}"
         )
 
+    def test_music_qa_report_uses_parsed_lufs_not_hardcoded(self, tmp_path):
+        """CR-01: music path qa_report must contain measured LUFS from parsed stderr.
+
+        The single-pass loudnorm stderr returns input_i=-16.09 (via pass2_proc
+        in the fake factory).  The QA report's measured_lufs must reflect that
+        parsed value, NOT a hardcoded target_lufs (-16.0).
+        """
+        import json as _json  # noqa: PLC0415
+        from avideo.models.config import RunConfig  # noqa: PLC0415
+        from avideo.stages.assemble import AssembleStage  # noqa: PLC0415
+        from avideo.utils.workdir import WorkdirManager  # noqa: PLC0415
+
+        workdir = WorkdirManager(tmp_path / "workdir")
+        _write_stage_checkpoints(workdir, tmp_path)
+
+        music_path = tmp_path / "music.mp3"
+        music_path.write_bytes(b"\xff\xe3")
+
+        bullets = tmp_path / "bullets.yaml"
+        bullets.write_text("title: T\nbullets:\n  - B\n", encoding="utf-8")
+        config = RunConfig(
+            bullets=bullets,
+            duration=10,
+            workdir=workdir.root,
+            bg_music_path=music_path,
+            bg_music_volume=0.12,
+            target_lufs=-16.0,
+        )
+
+        # pass2_proc.stderr has input_i = "-16.09" which will be parsed as measured_lufs
+        fake_run_ffmpeg, _ = _fake_ffmpeg_factory(_LOUDNORM_PASS1_STDERR)
+
+        with patch("avideo.integrations.ffmpeg.subprocess.run") as mock_subproc, \
+             patch("avideo.stages.assemble.run_ffmpeg", side_effect=fake_run_ffmpeg), \
+             patch("avideo.stages.assemble.probe_duration", return_value=10.0):
+            mock_subproc.return_value = types.SimpleNamespace(
+                returncode=0,
+                stdout=_json.dumps({"format": {"duration": "10.0"}}),
+                stderr="",
+            )
+            result = AssembleStage().run(workdir, config)
+
+        # qa_report.json must exist and contain parsed (not hardcoded) measured_lufs
+        qa_json = workdir.root / "qa_report.json"
+        assert qa_json.exists(), "qa_report.json must be written by music path"
+        qa_data = _json.loads(qa_json.read_text(encoding="utf-8"))
+        measured = qa_data.get("measured_lufs")
+        assert measured is not None, "qa_report.json must have measured_lufs field"
+        # pass2_proc stderr has input_i = -16.09; must not be the exact hardcoded target -16.0
+        # (within 0.5 LUFS tolerance to allow for rounding, but not exactly the target)
+        assert measured != -16.0 or abs(measured - (-16.09)) < 0.5, (
+            f"measured_lufs should come from parsed stderr (expected ≈ -16.09 from "
+            f"fake pass2_proc), but got {measured}. Check that parse_loudnorm_json "
+            "is called on single_proc.stderr and not hardcoded to target_lufs."
+        )
+        # The result QA report must also carry the value
+        assert result.qa is not None, "AssemblyOutput.qa must not be None"
+        assert result.qa.measured_lufs == measured, (
+            "AssemblyOutput.qa.measured_lufs must match qa_report.json"
+        )
+
+    def test_music_single_loudnorm_has_print_format_json(self, tmp_path):
+        """CR-01/WR-02: single-pass loudnorm must include print_format=json and -ar 48000."""
+        import json as _json  # noqa: PLC0415
+        from avideo.models.config import RunConfig  # noqa: PLC0415
+        from avideo.stages.assemble import AssembleStage  # noqa: PLC0415
+        from avideo.utils.workdir import WorkdirManager  # noqa: PLC0415
+
+        workdir = WorkdirManager(tmp_path / "workdir")
+        _write_stage_checkpoints(workdir, tmp_path)
+
+        music_path = tmp_path / "music.mp3"
+        music_path.write_bytes(b"\xff\xe3")
+
+        bullets = tmp_path / "bullets.yaml"
+        bullets.write_text("title: T\nbullets:\n  - B\n", encoding="utf-8")
+        config = RunConfig(
+            bullets=bullets,
+            duration=10,
+            workdir=workdir.root,
+            bg_music_path=music_path,
+        )
+
+        fake_run_ffmpeg, call_args_log = _fake_ffmpeg_factory(_LOUDNORM_PASS1_STDERR)
+
+        with patch("avideo.integrations.ffmpeg.subprocess.run") as mock_subproc, \
+             patch("avideo.stages.assemble.run_ffmpeg", side_effect=fake_run_ffmpeg), \
+             patch("avideo.stages.assemble.probe_duration", return_value=10.0):
+            mock_subproc.return_value = types.SimpleNamespace(
+                returncode=0,
+                stdout=_json.dumps({"format": {"duration": "10.0"}}),
+                stderr="",
+            )
+            AssembleStage().run(workdir, config)
+
+        # Identify the single-pass loudnorm call (the one with loudnorm= but not amix)
+        loudnorm_calls = [
+            args for args in call_args_log
+            if any("loudnorm=" in a for a in args)
+        ]
+        assert len(loudnorm_calls) == 1, (
+            f"Expected exactly 1 loudnorm call in music path; got {len(loudnorm_calls)}"
+        )
+        loudnorm_args_str = " ".join(loudnorm_calls[0])
+        assert "print_format=json" in loudnorm_args_str, (
+            f"Single-pass loudnorm must include print_format=json to enable stderr parsing "
+            f"(CR-01); got: {loudnorm_args_str}"
+        )
+        assert "-ar" in loudnorm_calls[0] and "48000" in loudnorm_calls[0], (
+            f"Single-pass loudnorm must include -ar 48000 for consistent sample rate "
+            f"(WR-02); got: {loudnorm_calls[0]}"
+        )
+
     def test_loudnorm_without_music(self, tmp_path, loudnorm_pass1_stderr):
         """Without bg_music_path, existing loudnorm behavior must be preserved."""
         from avideo.models.config import RunConfig  # noqa: PLC0415
