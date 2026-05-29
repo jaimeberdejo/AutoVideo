@@ -22,9 +22,9 @@
 
 ### CNT — Fase 1 Contenido
 
-- [ ] **CNT-01**: El usuario introduce el tema y la duración objetivo del vídeo
-- [ ] **CNT-02**: El usuario elige aportar sus propios bullets o que la app los genere desde el tema (Claude)
-- [ ] **CNT-03**: Los bullets generados se muestran para aprobar o editar antes de continuar
+- [x] **CNT-01**: El usuario introduce el tema y la duración objetivo del vídeo
+- [x] **CNT-02**: El usuario elige aportar sus propios bullets o que la app los genere desde el tema (Claude)
+- [x] **CNT-03**: Los bullets generados se muestran para aprobar o editar antes de continuar
 
 ### SCR — Fase 2 Guion
 
@@ -98,9 +98,9 @@ Qué fases cubren qué requisitos.
 | UI-05 | Phase 9 | Complete |
 | UI-06 | Phase 9 | Complete |
 | UI-07 | Phase 9 | Complete |
-| CNT-01 | Phase 10 | Pending |
-| CNT-02 | Phase 10 | Pending |
-| CNT-03 | Phase 10 | Pending |
+| CNT-01 | Phase 10 | Complete |
+| CNT-02 | Phase 10 | Complete |
+| CNT-03 | Phase 10 | Complete |
 | SCR-01 | Phase 11 | Pending |
 | SCR-02 | Phase 11 | Pending |
 | SCR-03 | Phase 11 | Pending |
