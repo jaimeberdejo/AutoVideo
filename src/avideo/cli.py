@@ -144,3 +144,44 @@ def generate(
     import avideo.orchestrator as _orch  # noqa: PLC0415
 
     _orch.run_pipeline(config)
+
+
+@app.command()
+def studio(
+    port: Annotated[
+        int,
+        typer.Option("--port", min=1, max=65535, help="Port for the Streamlit server."),
+    ] = 8501,
+    workdir: Annotated[
+        Optional[Path],
+        typer.Option(
+            "--workdir",
+            help="Path to an existing workdir to resume. Passed to the UI via AVIDEO_STUDIO_WORKDIR env var.",
+        ),
+    ] = None,
+) -> None:
+    """Launch the Studio Guiado — a guided 6-phase wizard UI in the browser."""
+    import subprocess  # noqa: PLC0415
+    import sys  # noqa: PLC0415
+    from pathlib import Path as _Path  # noqa: PLC0415
+
+    ui_app = _Path(__file__).parent / "ui" / "app.py"
+    cmd = [
+        sys.executable,
+        "-m",
+        "streamlit",
+        "run",
+        str(ui_app),
+        "--server.port",
+        str(port),
+        "--server.address",
+        "127.0.0.1",
+        "--server.headless",
+        "false",
+    ]
+    env = None
+    if workdir is not None:
+        import os  # noqa: PLC0415
+
+        env = {**os.environ, "AVIDEO_STUDIO_WORKDIR": str(workdir)}
+    subprocess.run(cmd, env=env, check=False)

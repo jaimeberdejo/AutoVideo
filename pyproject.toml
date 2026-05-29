@@ -21,6 +21,7 @@ dependencies = [
     "elevenlabs>=2.49.0",
     "openai>=2.38.0",
     "python-dotenv>=1.0",
+    "streamlit>=1.58.0",
 ]
 
 # Optional extra for the 'record' voice mode (sounddevice/soundfile/whisperx + torch).
@@ -47,6 +48,7 @@ record = [
 
 [project.scripts]
 avideo = "avideo.cli:app"
+avideo-studio = "avideo.cli:app"
 
 [build-system]
 requires = ["uv_build>=0.9.24,<0.10.0"]
