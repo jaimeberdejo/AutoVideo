@@ -65,7 +65,13 @@ Plans:
   3. Al cerrar y reabrir el navegador con el mismo workdir, el wizard retoma exactamente la fase y estado donde se dejó (la UI se reconstruye desde `workdir/*.json`, no desde `session_state`)
   4. Una etapa larga (p. ej. render de slides) lanzada via bridge muestra progreso en tiempo real sin congelar la UI; el usuario puede interactuar con otros widgets mientras la etapa corre en background
   5. El CLI `avideo generate` sigue funcionando exactamente igual que en v1.60.0 (headless); la UI invoca las etapas existentes directamente sin reescribir el pipeline
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 09-01-PLAN.md — Wave 0: RED test scaffolds (test_workdir_invalidate, test_bridge, test_ui_state)
+- [ ] 09-02-PLAN.md — Wave 1a: WorkdirManager.invalidate_downstream + avideo studio CLI + streamlit dep
+- [ ] 09-03-PLAN.md — Wave 1b: ui/state.py + ui/bridge.py (PipelineBridge, RunStatus)
+- [ ] 09-04-PLAN.md — Wave 2: app.py shell + 6 placeholder phase pages + .streamlit/config.toml
 **UI hint**: yes
 
 ### Phase 10: Contenido Page
