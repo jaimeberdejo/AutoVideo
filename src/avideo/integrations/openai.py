@@ -147,13 +147,12 @@ def transcribe_slide_openai(
     """
     from avideo.models.timings import SlideTimings, WordTiming  # noqa: PLC0415
 
-    with open(audio_path, "rb") as f:
-        result = _get_client().audio.transcriptions.create(
-            file=f,
-            model="whisper-1",                         # MUST be whisper-1; not gpt-4o-transcribe (T-08-03-04)
-            response_format="verbose_json",
-            timestamp_granularities=["word"],
-        )
+    result = _get_client().audio.transcriptions.create(
+        file=audio_path,
+        model="whisper-1",                         # MUST be whisper-1; not gpt-4o-transcribe (T-08-03-04)
+        response_format="verbose_json",
+        timestamp_granularities=["word"],
+    )
     words = [
         WordTiming(text=w.word, start=w.start, end=w.end)
         for w in (result.words or [])

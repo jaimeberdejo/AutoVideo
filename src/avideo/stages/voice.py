@@ -70,4 +70,8 @@ class VoiceStage(CheckpointMixin):
                 ) from exc
             return VoiceRecordStage().run(workdir, config)
 
+        if config.voice == VoiceMode.openai:
+            from avideo.stages.voice_openai import VoiceOpenAIStage  # noqa: PLC0415 — lazy: avoids openai import at module load
+            return VoiceOpenAIStage().run(workdir, config)
+
         raise NotImplementedError(f"Unknown voice mode: {config.voice!r}")
