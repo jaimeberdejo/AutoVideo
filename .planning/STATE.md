@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0.0
 milestone_name: Studio Guiado
-status: executing
-stopped_at: Completed 08-03-PLAN.md
-last_updated: "2026-05-29T15:10:31.713Z"
-last_activity: 2026-05-29 -- Phase 10 Plan 01 completed (RED tests for bullets_gen)
+status: completed
+stopped_at: Completed 10-03-PLAN.md
+last_updated: "2026-05-29T15:16:12.422Z"
+last_activity: 2026-05-29 -- Phase 10 Plan 03 completed (real Fase 1 Contenido page)
 progress:
   total_phases: 6
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 12
-  completed_plans: 10
-  percent: 83
+  completed_plans: 12
+  percent: 100
 ---
 
 # Project State
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-05-29)
 ## Current Position
 
 Phase: 10 (Contenido Page) — EXECUTING
-Plan: 2 of ?
-Status: Executing Phase 10
-Last activity: 2026-05-29 -- Phase 10 Plan 01 completed (RED tests for bullets_gen)
+Plan: 3 of 3
+Status: Phase 10 Plan 03 complete
+Last activity: 2026-05-29 -- Phase 10 Plan 03 completed (real Fase 1 Contenido page)
 
 ```
 Progress: [██████████] 100%
@@ -66,6 +66,7 @@ Progress: [██████████] 100%
 | Phase 09-ui-foundation P09-01 | 128 | 3 tasks | 3 files |
 | Phase 09-ui-foundation P09-02 | 180 | 2 tasks | 3 files |
 | Phase 10-contenido-page P10-01 | 4 | 1 tasks | 1 files |
+| Phase 10-contenido-page P10-03 | 80 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -90,6 +91,7 @@ Recent decisions affecting current work (v2.0.0):
 - [Phase ?]: transcribe_slide_openai passes Path directly to SDK (no open()) — mock seam works without real file on disk; OpenAI SDK accepts Path objects
 - [Phase ?]: whisper-1 hard-coded in transcribe_slide_openai — gpt-4o-transcribe lacks word timestamps (T-08-03-04 / Pitfall 17)
 - [Phase ?]: Single-pass loudnorm when music present
+- [Phase 10-03]: bullets.yaml written via Path.write_text(yaml.safe_dump()) + separate context.json via workdir.write_checkpoint; both files needed for distinct consumers (CLI engine vs shell gate)
 
 ### Pending Todos
 
@@ -118,6 +120,6 @@ Carried forward from v1.60.0 (non-blocking):
 
 ## Session Continuity
 
-Last session: 2026-05-29T15:10:31.709Z
-Stopped at: Completed 08-03-PLAN.md
+Last session: 2026-05-29T15:16:12.419Z
+Stopped at: Completed 10-03-PLAN.md
 Resume file: None

@@ -30,7 +30,7 @@ Full phase detail: [milestones/v1.60.0-ROADMAP.md](milestones/v1.60.0-ROADMAP.md
 
 - [x] **Phase 8: Backend Integrations** — OpenAI Audio TTS + STT round-trip + audio enhancement + background music FFmpeg pipeline (completed 2026-05-29)
 - [x] **Phase 9: UI Foundation** — Streamlit shell + PipelineBridge + state model + invalidate_downstream + workdir reconstruction (completed 2026-05-29)
-- [ ] **Phase 10: Contenido Page** — Fase 1 wizard: intake de tema + duración + auto-generación de bullets + gate de aprobación
+- [x] **Phase 10: Contenido Page** — Fase 1 wizard: intake de tema + duración + auto-generación de bullets + gate de aprobación (completed 2026-05-29)
 - [ ] **Phase 11: Guion + Slides Pages** — Fases 2 y 3 wizard: guion editable + variaciones + slides interactivas + verificador QC
 - [ ] **Phase 12: Voz Page** — Fase 4 wizard: selección de proveedor de narración + previews de audio + gate de aprobación
 - [ ] **Phase 13: Extras + Ensamblaje + Polish** — Fases 5–6 wizard: extras + montaje final + preview/descarga + packaging y tests
@@ -86,8 +86,8 @@ Plans:
 
 Plans:
 - [x] 10-01-PLAN.md — Wave 0 (TDD): RED test scaffolds — generate_bullets mock, bullets.yaml round-trip, duration validation
-- [ ] 10-02-PLAN.md — Wave 1: stages/bullets_gen.py — generate_bullets() + validate_duration() + BulletsListOutput
-- [ ] 10-03-PLAN.md — Wave 2: phase_1_contenido.py — real Fase 1 page replacing Phase 9 placeholder
+- [x] 10-02-PLAN.md — Wave 1: stages/bullets_gen.py — generate_bullets() + validate_duration() + BulletsListOutput
+- [x] 10-03-PLAN.md — Wave 2: phase_1_contenido.py — real Fase 1 page replacing Phase 9 placeholder
 **UI hint**: yes
 
 ### Phase 11: Guion + Slides Pages
@@ -141,7 +141,7 @@ Plans:
 | 7. Empaquetado + Tests + Docs | v1.60.0 | 3/3 | Complete | 2026-05-26 |
 | 8. Backend Integrations | v2.0.0 | 5/5 | Complete   | 2026-05-29 |
 | 9. UI Foundation | v2.0.0 | 4/4 | Complete   | 2026-05-29 |
-| 10. Contenido Page | v2.0.0 | 1/3 | In Progress|  |
+| 10. Contenido Page | v2.0.0 | 3/3 | Complete   | 2026-05-29 |
 | 11. Guion + Slides Pages | v2.0.0 | 0/- | Not started | - |
 | 12. Voz Page | v2.0.0 | 0/- | Not started | - |
 | 13. Extras + Ensamblaje + Polish | v2.0.0 | 0/- | Not started | - |
