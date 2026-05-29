@@ -1,49 +1,167 @@
-"""avideo.ui.pages.phase_6_ensamble — Phase 6: Ensamblaje placeholder.
+"""avideo.ui.pages.phase_6_ensamble — Phase 6: Ensamblaje (ASM-01 / ASM-02).
 
-Real content implemented in Phase 13 of the roadmap.
-This placeholder establishes the render(workdir) -> bool contract and
-provides a "marcar lista" gate toggle so the wizard navigation works
-end-to-end before the content is built.
+Implements the final wizard page:
+- ASM-01: "Montar vídeo" button launches SubtitlesStage (if burn_subs) + AssembleStage
+  via PipelineBridge in a background thread; @st.fragment(run_every="2s") polls
+  done-markers without blocking the UI.
+- ASM-02: On completion, st.video(output.mp4) player + st.download_button for the
+  final MP4 + QA report rendered as st.metric widgets (duration deviation + LUFS).
+- Gate "Finalizar" is the terminal phase gate — enabled only when assemble.done exists.
 
-Phase 13 will replace this body with:
-- st.button to trigger assembly stage via PipelineBridge
-- @st.fragment(run_every="2s") for live FFmpeg assembly progress
-- Final video preview: st.video(str(workdir.root / "output.mp4"))
-- st.download_button for the final MP4 download
-- Summary card: duration, slide count, voice provider, file size
+render(workdir) -> bool returns True when and only when workdir.is_done("assemble").
 """
 from __future__ import annotations
 
 import streamlit as st
+
 from avideo.utils.workdir import WorkdirManager
 
 
 def render(workdir: WorkdirManager) -> bool:
-    """Render Phase 6 (Ensamblaje) placeholder body.
+    """Render Phase 6 (Ensamblaje) wizard body.
+
+    Implements ASM-01 (non-blocking assembly via PipelineBridge with live progress)
+    and ASM-02 (video player + download button + QA report metrics).
 
     Args:
-        workdir: Active WorkdirManager for the current run (read-only in placeholder).
+        workdir: Active WorkdirManager for the current run.
 
     Returns:
-        True if the phase gate condition is met (user toggled "marcar lista").
+        True when and only when the assemble done-marker exists.
     """
-    st.info(
-        "**Fase 6 — Ensamblaje** (implementado en Phase 13)\n\n"
-        "El contenido de esta fase se construye en la siguiente iteración del roadmap. "
-        "Por ahora, activa el toggle de abajo para probar la navegación del wizard."
-    )
+    # ------------------------------------------------------------------
+    # Build RunConfig from session state (mirrors phase_4_voz.py pattern)
+    # ------------------------------------------------------------------
+    rc_dict = dict(st.session_state.get("run_config", {}))
+    if "bullets" not in rc_dict:
+        rc_dict["bullets"] = workdir.root / "bullets.yaml"
+    if "duration" not in rc_dict:
+        rc_dict["duration"] = 60  # fallback; real value set in Phase 1
 
-    # Placeholder preview stub — Phase 13 will populate with final video + download.
-    # st.video(str(workdir.root / "output.mp4"), format="video/mp4")
-    # st.download_button("Descargar vídeo", data=open(workdir.root / "output.mp4", "rb"), ...)
+    from avideo.models.config import RunConfig  # noqa: PLC0415
 
-    gate_met: bool = st.toggle(
-        "Marcar esta fase como lista (placeholder)",
-        key="gate_phase_6",
-        value=False,
-    )
+    try:
+        config = RunConfig(**rc_dict)
+    except Exception as exc:  # noqa: BLE001
+        st.error(f"Error de configuración: {exc}")
+        return False
 
-    if gate_met:
-        st.success("Fase marcada como lista. Puedes continuar.")
+    # ------------------------------------------------------------------
+    # Check assembly done marker
+    # ------------------------------------------------------------------
+    assemble_done = workdir.is_done("assemble")
 
-    return gate_met
+    # ------------------------------------------------------------------
+    # SECTION: Montar vídeo (ASM-01)
+    # ------------------------------------------------------------------
+    from avideo.ui.bridge import RunStatus, stage_status  # noqa: PLC0415
+
+    s_assemble = stage_status("assemble", workdir)
+    btn_disabled = s_assemble == RunStatus.RUNNING
+
+    if st.button(
+        "Montar vídeo",
+        key="btn_assemble",
+        disabled=btn_disabled,
+        type="primary",
+    ):
+        # If burn_subs is enabled, launch SubtitlesStage first (idempotent).
+        # run_stage checks done-markers so duplicate calls are safe.
+        if config.burn_subs:
+            from avideo.stages.subtitles import SubtitlesStage  # noqa: PLC0415
+            from avideo.ui.bridge import run_stage  # noqa: PLC0415
+
+            workdir.done_marker("subs").unlink(missing_ok=True)
+            workdir.invalidate_downstream("subs")
+            run_stage(SubtitlesStage(), workdir, config)
+
+        from avideo.stages.assemble import AssembleStage  # noqa: PLC0415
+        from avideo.ui.bridge import run_stage as _run_stage  # noqa: PLC0415
+
+        workdir.done_marker("assemble").unlink(missing_ok=True)
+        workdir.invalidate_downstream("assemble")
+        _run_stage(AssembleStage(), workdir, config)
+        st.rerun()
+
+    # ------------------------------------------------------------------
+    # SECTION: Progress polling (ASM-01 — non-blocking)
+    # ------------------------------------------------------------------
+    if not assemble_done:
+
+        @st.fragment(run_every="2s")
+        def _poll_assemble() -> None:
+            from avideo.ui.bridge import RunStatus, get_error, stage_status  # noqa: PLC0415
+
+            sa = stage_status("assemble", workdir)
+            if sa == RunStatus.ERROR:
+                st.error(f"Error en el montaje: {get_error('assemble')}")
+            elif sa in (RunStatus.RUNNING, RunStatus.IDLE):
+                with st.status("Montando vídeo...", expanded=True):
+                    st.info("FFmpeg está procesando. La UI seguirá respondiendo.")
+            elif sa == RunStatus.DONE:
+                st.rerun()
+
+        _poll_assemble()
+        return False
+
+    # ------------------------------------------------------------------
+    # SECTION: Video player + download (ASM-02)
+    # ------------------------------------------------------------------
+    output_mp4 = workdir.root / "output.mp4"
+    if output_mp4.exists():
+        st.subheader("Vídeo final")
+        st.video(str(output_mp4))
+        with open(output_mp4, "rb") as f:
+            st.download_button(
+                label="Descargar output.mp4",
+                data=f,
+                file_name="output.mp4",
+                mime="video/mp4",
+                key="btn_download_video",
+                type="primary",
+            )
+    else:
+        st.warning(
+            "output.mp4 no encontrado. Pulsa 'Montar vídeo' para generar el vídeo."
+        )
+
+    # ------------------------------------------------------------------
+    # SECTION: Informe QA (ASM-02)
+    # ------------------------------------------------------------------
+    from avideo.ui.pipeline_ops import read_qa_report  # noqa: PLC0415
+
+    qa = read_qa_report(workdir)
+    if qa is not None:
+        st.subheader("Informe QA")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Duración real (s)", f"{qa.actual_seconds:.1f}")
+        with col2:
+            delta_sign = "+" if qa.duration_deviation >= 0 else ""
+            st.metric(
+                "Desviación (s)",
+                f"{delta_sign}{qa.duration_deviation:.1f}",
+                delta=f"{delta_sign}{qa.duration_deviation:.1f}",
+            )
+        with col3:
+            if qa.normalized_lufs is not None:
+                st.metric("LUFS normalizados", f"{qa.normalized_lufs:.1f} LUFS")
+            elif qa.measured_lufs is not None:
+                st.metric("LUFS medidos", f"{qa.measured_lufs:.1f} LUFS")
+    elif assemble_done:
+        st.info("qa_report.json no disponible.")
+
+    # ------------------------------------------------------------------
+    # Gate — Finalizar (terminal phase)
+    # ------------------------------------------------------------------
+    st.divider()
+    if st.button(
+        "Finalizar",
+        key="btn_finalizar",
+        type="primary",
+        disabled=not assemble_done,
+    ):
+        st.success("Proyecto completado. El vídeo está listo.")
+        st.balloons()
+
+    return assemble_done
