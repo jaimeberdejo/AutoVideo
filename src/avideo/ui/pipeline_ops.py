@@ -143,6 +143,108 @@ def write_uploaded_slide(
 
 
 # ---------------------------------------------------------------------------
+# Voice helpers (Phase 12)
+# ---------------------------------------------------------------------------
+
+
+def rerun_voice(workdir: "WorkdirManager", config: "RunConfig") -> None:
+    """Reset the voice done-marker and launch ONLY the voice stage.
+
+    Deletes ``workdir/.voice.done`` so that ``bridge.run_stage`` will start a
+    fresh thread even if the stage ran before.  Calls
+    ``invalidate_downstream("voice")`` so that all downstream stages (align,
+    subs, assemble) are also invalidated — their outputs are stale once voice
+    changes.
+
+    Does NOT touch storyboard, scriptwriter, or slides done-markers.
+
+    Args:
+        workdir: Active WorkdirManager for the current run.
+        config:  RunConfig for the current run.
+    """
+    from avideo.stages.voice import VoiceStage  # noqa: PLC0415
+
+    workdir.done_marker("voice").unlink(missing_ok=True)
+    workdir.invalidate_downstream("voice")
+    run_stage(VoiceStage(), workdir, config)
+
+
+def write_uploaded_audio(
+    workdir: "WorkdirManager",
+    filename: str,
+    data: bytes,
+) -> Path:
+    """Write uploaded audio bytes to ``workdir/audio/<filename>``.
+
+    Guards against path traversal: if *filename* contains ``/``, ``\\``,
+    or starts with ``..``, a ``ValueError`` is raised before any file is
+    written (T-12-02-01).
+
+    Args:
+        workdir:  Active WorkdirManager for the current run.
+        filename: Bare filename provided by the user (e.g. ``"slide_00.mp3"``).
+        data:     Raw bytes of the uploaded audio file.
+
+    Returns:
+        The ``Path`` of the written file (``workdir.root / "audio" / filename``).
+
+    Raises:
+        ValueError: If *filename* contains a path separator or starts with
+                    ``".."``, indicating a path traversal attempt.
+    """
+    if "/" in filename or "\\" in filename or filename.startswith(".."):
+        raise ValueError(
+            f"Unsafe filename rejected (path traversal attempt): {filename!r}"
+        )
+
+    dest_dir = workdir.root / "audio"
+    dest_dir.mkdir(exist_ok=True)
+    dest = dest_dir / filename
+    dest.write_bytes(data)
+    return dest
+
+
+def audio_gate_ready(workdir: "WorkdirManager", n_slides: int) -> bool:
+    """Return True iff all slides have audio AND timings.json has valid word-level data.
+
+    Checks:
+    1. For each slide i in range(n_slides), either ``audio/slide_{i:02d}.mp3``
+       or ``audio/slide_{i:02d}.wav`` must exist.
+    2. ``voice.json`` must parse successfully as ``UnifiedTimings``.
+    3. ``len(timings.slides)`` must equal *n_slides*.
+    4. Every ``SlideTimings.words`` list must be non-empty.
+
+    Returns False (never raises) on any missing or malformed state so that the
+    UI gate is safe to call at any pipeline stage (T-12-02-02).
+
+    Args:
+        workdir:  Active WorkdirManager for the current run.
+        n_slides: Expected number of slides (and corresponding audio files).
+
+    Returns:
+        ``True`` if all conditions are satisfied; ``False`` otherwise.
+    """
+    from avideo.models.timings import UnifiedTimings  # noqa: PLC0415
+
+    audio_dir = workdir.root / "audio"
+    for i in range(n_slides):
+        mp3 = audio_dir / f"slide_{i:02d}.mp3"
+        wav = audio_dir / f"slide_{i:02d}.wav"
+        if not (mp3.exists() or wav.exists()):
+            return False
+
+    try:
+        timings: UnifiedTimings = workdir.read_checkpoint("voice", UnifiedTimings)  # type: ignore[assignment]
+    except Exception:  # noqa: BLE001
+        return False
+
+    if len(timings.slides) != n_slides:
+        return False
+
+    return all(len(slide.words) > 0 for slide in timings.slides)
+
+
+# ---------------------------------------------------------------------------
 # Badge mapping
 # ---------------------------------------------------------------------------
 
