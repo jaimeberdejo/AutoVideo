@@ -47,14 +47,14 @@
 
 ### EXT — Fase 5 Extras
 
-- [ ] **EXT-01**: El usuario elige qué extras añadir: subtítulos, transiciones, música de fondo
+- [x] **EXT-01**: El usuario elige qué extras añadir: subtítulos, transiciones, música de fondo
 - [x] **EXT-02**: El usuario aporta una pista de música de fondo (archivo) que se mezcla bajo la narración con ducking + fade in/out
 - [x] **EXT-03**: La música no degrada el loudness de la narración — una sola pasada loudnorm sobre la mezcla final (`amix normalize=0` + volumen explícito; fade desde la duración real medida por ffprobe)
 
 ### ASM — Fase 6 Ensamblaje
 
-- [ ] **ASM-01**: El sistema monta el vídeo final automáticamente sincronizando cada audio con su slide e integrando voz + extras seleccionados
-- [ ] **ASM-02**: El vídeo final se muestra en la UI para reproducir y descargar; el informe QA (desviación de duración + LUFS) queda disponible
+- [x] **ASM-01**: El sistema monta el vídeo final automáticamente sincronizando cada audio con su slide e integrando voz + extras seleccionados
+- [x] **ASM-02**: El vídeo final se muestra en la UI para reproducir y descargar; el informe QA (desviación de duración + LUFS) queda disponible
 
 ## Later Requirements
 
@@ -111,11 +111,11 @@ Qué fases cubren qué requisitos.
 | VOZ-01 | Phase 12 | Complete |
 | VOZ-02 | Phase 8 | Complete |
 | VOZ-03 | Phase 8 | Complete |
-| EXT-01 | Phase 13 | Pending |
+| EXT-01 | Phase 13 | Complete |
 | EXT-02 | Phase 8 | Complete |
 | EXT-03 | Phase 8 | Complete |
-| ASM-01 | Phase 13 | Pending |
-| ASM-02 | Phase 13 | Pending |
+| ASM-01 | Phase 13 | Complete |
+| ASM-02 | Phase 13 | Complete |
 
 **Coverage:**
 - v2.0.0 requirements: 25 total

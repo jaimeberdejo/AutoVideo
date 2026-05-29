@@ -139,7 +139,7 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 13-01-PLAN.md — Wave 0: RED test scaffold (write_uploaded_music, extras_to_run_config, read_qa_report)
+- [x] 13-01-PLAN.md — Wave 0: RED test scaffold (write_uploaded_music, extras_to_run_config, read_qa_report)
 - [ ] 13-02-PLAN.md — Wave 1: Extend pipeline_ops + replace phase_5_extras.py (EXT-01)
 - [ ] 13-03-PLAN.md — Wave 2: Replace phase_6_ensamble.py (ASM-01, ASM-02)
 - [ ] 13-04-PLAN.md — Wave 3: Dockerfile EXPOSE 8501 + page smoke tests + human checkpoint
@@ -161,4 +161,4 @@ Plans:
 | 10. Contenido Page | v2.0.0 | 3/3 | Complete   | 2026-05-29 |
 | 11. Guion + Slides Pages | v2.0.0 | 4/4 | Complete   | 2026-05-29 |
 | 12. Voz Page | v2.0.0 | 3/3 | Complete   | 2026-05-29 |
-| 13. Extras + Ensamblaje + Polish | v2.0.0 | 0/4 | Planned | - |
+| 13. Extras + Ensamblaje + Polish | v2.0.0 | 1/4 | In Progress|  |

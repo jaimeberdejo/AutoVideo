@@ -4,14 +4,14 @@ milestone: v2.0.0
 milestone_name: Studio Guiado
 status: executing
 stopped_at: Completed 12-03-PLAN.md
-last_updated: "2026-05-29T17:32:12.000Z"
-last_activity: 2026-05-29 -- Phase 12 Plan 03 complete (VOZ-01/03 wizard page)
+last_updated: "2026-05-29T17:47:33.533Z"
+last_activity: 2026-05-29 -- Phase 13 execution started
 progress:
   total_phases: 6
   completed_phases: 5
-  total_plans: 19
-  completed_plans: 19
-  percent: 100
+  total_plans: 23
+  completed_plans: 20
+  percent: 87
 ---
 
 # Project State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-29)
 
 **Core value:** A partir de unos bullets + una duración, obtener un vídeo narrado coherente y de alta calidad (slides + voz + subtítulos sincronizados) sin intervención manual obligatoria, con checkpoints opcionales de supervisión.
-**Current focus:** Phase 12 — Voz Page
+**Current focus:** Phase 13 — Extras + Ensamblaje + Polish
 
 ## Current Position
 
-Phase: 12 (Voz Page) — COMPLETE
-Plan: 3 of 3 (all plans complete)
-Status: Phase 12 fully executed; ready for Phase 13
-Last activity: 2026-05-29 -- Phase 12 Plan 03 complete (VOZ-01/03 wizard page)
+Phase: 13 (Extras + Ensamblaje + Polish) — EXECUTING
+Plan: 1 of ?
+Status: Executing Phase 13
+Last activity: 2026-05-29 -- Phase 13 execution started
 
 ```
-Progress: [██████████] 100%
+Progress: [█████████░] 87%
 ```
 
 ## Performance Metrics
@@ -70,6 +70,7 @@ Progress: [██████████] 100%
 | Phase 11-guion-slides-pages P03 | 87 | 1 tasks | 1 files |
 | Phase 12-voz-page P12-01 | 1 | 1 tasks | 1 files |
 | Phase 12-voz-page P12-03 | 100 | 1 tasks | 1 files |
+| Phase 13-extras-ensamblaje-polish P01 | 93 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -96,6 +97,7 @@ Recent decisions affecting current work (v2.0.0):
 - [Phase ?]: Single-pass loudnorm when music present
 - [Phase 10-03]: bullets.yaml written via Path.write_text(yaml.safe_dump()) + separate context.json via workdir.write_checkpoint; both files needed for distinct consumers (CLI engine vs shell gate)
 - [Phase ?]: Wave 0 RED scaffold: deferred imports inside test bodies allow 11 tests to collect before helpers exist (mirrors Phase 11 pattern)
+- [Phase ?]: Deferred imports in RED test bodies so file collects before helpers exist (mirrors Phase 11/12 pattern)
 
 ### Pending Todos
 
@@ -124,6 +126,6 @@ Carried forward from v1.60.0 (non-blocking):
 
 ## Session Continuity
 
-Last session: 2026-05-29T17:33:03.130Z
+Last session: 2026-05-29T17:47:30.392Z
 Stopped at: Completed 12-03-PLAN.md
 Resume file: None
