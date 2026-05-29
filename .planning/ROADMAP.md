@@ -100,7 +100,13 @@ Plans:
   3. El usuario puede pedir una variación del guion completo (o por slide); el bridge relanza solo la etapa scriptwriter, no todo el pipeline
   4. Al entrar en Fase 3, el usuario elige modo `auto` (la app genera slides) o subir las suyas; en modo auto, los thumbnails PNG aparecen al completarse el render con badges ok/warning/fail del verificador
   5. El usuario puede solicitar variaciones de slides en modo auto; en modo upload, el verificador Claude Vision muestra un informe por slide y permite re-subir antes de aprobar
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 11-01-PLAN.md — Wave 0: RED test scaffold for pipeline_ops glue (single-stage re-run, script persistence, upload path, badge mapping)
+- [ ] 11-02-PLAN.md — Wave 1: ui/pipeline_ops.py — rerun_scriptwriter, rerun_slides, persist_edited_script, write_uploaded_slide, badge_for_verdict
+- [ ] 11-03-PLAN.md — Wave 2a: phase_2_guion.py — Fase 2 real page (auto-run + editor + variation + approve gate)
+- [ ] 11-04-PLAN.md — Wave 2b: phase_3_slides.py — Fase 3 real page (mode radio + thumbnails + upload + QC badges + approve gate)
 **UI hint**: yes
 
 ### Phase 12: Voz Page
