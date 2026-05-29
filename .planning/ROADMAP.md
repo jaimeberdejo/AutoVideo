@@ -46,7 +46,14 @@ Full phase detail: [milestones/v1.60.0-ROADMAP.md](milestones/v1.60.0-ROADMAP.md
   2. El comando de mejora de audio (`enhance_audio`) aplica denoise + loudnorm sobre un archivo de entrada y produce un archivo de salida mejorado sin modificar el original
   3. El pipeline puede montar un vídeo con música de fondo (ducking + fade) usando una sola pasada loudnorm sobre la mezcla final; la narración mantiene su LUFS objetivo
   4. Los 303 tests previos siguen pasando; los nuevos módulos tienen cobertura de tests unitarios (stub de OpenAI, mock de FFmpeg subprocess)
-**Plans**: TBD
+**Plans**: 5 plans
+
+Plans:
+- [ ] 08-01-PLAN.md — Wave 0: Test scaffolds for VOZ-02, VOZ-03, EXT-02, EXT-03 (3 new test files, RED until impl lands)
+- [ ] 08-02-PLAN.md — Wave 1: Model layer — VoiceMode.openai + RunConfig new fields + pyproject.toml dep promotion
+- [ ] 08-03-PLAN.md — Wave 2a: OpenAI Audio integration — integrations/openai.py + stages/voice_openai.py + voice.py dispatcher
+- [ ] 08-04-PLAN.md — Wave 2b: Audio enhancement utility — utils/audio_enhance.py (afftdn + loudnorm, non-destructive)
+- [ ] 08-05-PLAN.md — Wave 3: Background music assembly — build_music_mix_args() + AssembleStage Step 8.5
 
 ### Phase 9: UI Foundation
 **Goal**: La app Streamlit arranca con `avideo studio`, muestra un wizard de 6 fases navegable, reconstruye el estado desde `workdir/` en refresco de página, y ejecuta etapas largas sin bloquear la UI
@@ -121,7 +128,7 @@ Full phase detail: [milestones/v1.60.0-ROADMAP.md](milestones/v1.60.0-ROADMAP.md
 | 5. Montaje + QA | v1.60.0 | 2/2 | Complete | 2026-05-26 |
 | 6. Slides Hybrid/Manual + Verificador | v1.60.0 | 2/2 | Complete | 2026-05-26 |
 | 7. Empaquetado + Tests + Docs | v1.60.0 | 3/3 | Complete | 2026-05-26 |
-| 8. Backend Integrations | v2.0.0 | 0/- | Not started | - |
+| 8. Backend Integrations | v2.0.0 | 0/5 | Not started | - |
 | 9. UI Foundation | v2.0.0 | 0/- | Not started | - |
 | 10. Contenido Page | v2.0.0 | 0/- | Not started | - |
 | 11. Guion + Slides Pages | v2.0.0 | 0/- | Not started | - |
