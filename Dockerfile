@@ -12,6 +12,9 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 WORKDIR /app
 
+# Streamlit UI port — avideo studio launches on 8501 by default.
+EXPOSE 8501
+
 # Copiar manifiestos primero para cachear la capa de dependencias.
 COPY pyproject.toml uv.lock ./
 
@@ -35,5 +38,10 @@ RUN uv run playwright install chromium
 #   docker run -e ANTHROPIC_API_KEY=... -e ELEVENLABS_API_KEY=... ...
 # NUNCA se hornean en la imagen (ver threat_model T-07-02).
 
+# Default entry: headless CLI (avideo generate ...)
+# To run the Studio UI in Docker (headless, bind to all interfaces):
+#   docker run -p 8501:8501 -e ANTHROPIC_API_KEY=... <image> studio --port 8501
+# Or override CMD directly with streamlit:
+#   docker run -p 8501:8501 <image> bash -c "streamlit run src/avideo/ui/app.py --server.headless=true --server.address=0.0.0.0 --server.port=8501"
 ENTRYPOINT ["uv", "run", "avideo"]
 CMD ["--help"]
