@@ -29,7 +29,7 @@ Full phase detail: [milestones/v1.60.0-ROADMAP.md](milestones/v1.60.0-ROADMAP.md
 ### 🚧 v2.0.0 Studio Guiado (Phases 8–13)
 
 - [x] **Phase 8: Backend Integrations** — OpenAI Audio TTS + STT round-trip + audio enhancement + background music FFmpeg pipeline (completed 2026-05-29)
-- [ ] **Phase 9: UI Foundation** — Streamlit shell + PipelineBridge + state model + invalidate_downstream + workdir reconstruction
+- [x] **Phase 9: UI Foundation** — Streamlit shell + PipelineBridge + state model + invalidate_downstream + workdir reconstruction (completed 2026-05-29)
 - [ ] **Phase 10: Contenido Page** — Fase 1 wizard: intake de tema + duración + auto-generación de bullets + gate de aprobación
 - [ ] **Phase 11: Guion + Slides Pages** — Fases 2 y 3 wizard: guion editable + variaciones + slides interactivas + verificador QC
 - [ ] **Phase 12: Voz Page** — Fase 4 wizard: selección de proveedor de narración + previews de audio + gate de aprobación
@@ -71,7 +71,7 @@ Plans:
 - [x] 09-01-PLAN.md — Wave 0: RED test scaffolds (test_workdir_invalidate, test_bridge, test_ui_state)
 - [x] 09-02-PLAN.md — Wave 1a: WorkdirManager.invalidate_downstream + avideo studio CLI + streamlit dep
 - [x] 09-03-PLAN.md — Wave 1b: ui/state.py + ui/bridge.py (PipelineBridge, RunStatus)
-- [ ] 09-04-PLAN.md — Wave 2: app.py shell + 6 placeholder phase pages + .streamlit/config.toml
+- [x] 09-04-PLAN.md — Wave 2: app.py shell + 6 placeholder phase pages + .streamlit/config.toml
 **UI hint**: yes
 
 ### Phase 10: Contenido Page
@@ -135,7 +135,7 @@ Plans:
 | 6. Slides Hybrid/Manual + Verificador | v1.60.0 | 2/2 | Complete | 2026-05-26 |
 | 7. Empaquetado + Tests + Docs | v1.60.0 | 3/3 | Complete | 2026-05-26 |
 | 8. Backend Integrations | v2.0.0 | 5/5 | Complete   | 2026-05-29 |
-| 9. UI Foundation | v2.0.0 | 3/4 | In Progress|  |
+| 9. UI Foundation | v2.0.0 | 4/4 | Complete   | 2026-05-29 |
 | 10. Contenido Page | v2.0.0 | 0/- | Not started | - |
 | 11. Guion + Slides Pages | v2.0.0 | 0/- | Not started | - |
 | 12. Voz Page | v2.0.0 | 0/- | Not started | - |
