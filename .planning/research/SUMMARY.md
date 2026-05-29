@@ -1,242 +1,314 @@
 # Project Research Summary
 
-**Project:** auto-video-narrado
-**Domain:** CLI Python — pipeline secuencial de vídeo narrado (slides generadas + voz en off + subtítulos)
-**Researched:** 2026-05-25
-**Confidence:** HIGH
+**Project:** Auto Video Narrado — v2.0.0 Studio Guiado
+**Domain:** Python GUI-over-CLI — Streamlit wizard over an existing narrated-video pipeline
+**Researched:** 2026-05-29
+**Confidence:** HIGH (all four research files verified against PyPI, official docs, Context7, and existing source code)
+
+---
 
 ## Executive Summary
 
-auto-video-narrado es un pipeline CLI totalmente secuencial que transforma bullets + duración objetivo en un vídeo narrado listo para consumir (slides 1080p 16:9, voz sintetizada por ElevenLabs, subtítulos SRT/VTT sincronizados, montaje FFmpeg). El enfoque recomendado por la investigación es un orquestador propio en Python — sin LangGraph, sin n8n, sin MoviePy — con checkpoints reanudables basados en ficheros JSON Pydantic-tipados en `workdir/`. La arquitectura de referencia en dominios análogos (AutoLectures 2025, PresentAgent 2024) confirma que un pipeline LLM secuencial con alineación de timestamps TTS es el patrón maduro de 2025-2026. El stack está completamente verificado en PyPI y fuentes oficiales, con versiones pineadas probadas en producción.
+Auto Video Narrado v2.0.0 adds a Streamlit-based guided studio on top of the complete, passing v1.60.0 pipeline. The pattern is well-established: Streamlit acts as a thin orchestration layer that reads from and writes to the existing `workdir/` checkpoint system, while all heavy computation continues to happen inside the existing stage objects. The pipeline is not rewritten; it is wrapped. Three new backend capabilities are added in parallel: OpenAI Audio as a third TTS provider, background music mixing with ducking, and audio enhancement for uploaded recordings. Each slots into the existing stage interfaces without disrupting the stage sequence.
 
-El mayor riesgo técnico del proyecto no es la integración individual de ninguna librería, sino la sincronía acumulada entre audio y vídeo y la idempotencia del orquestador ante fallos parciales de API. La investigación identifica cuatro puntos críticos que deben resolverse en los primeros sprints antes de cualquier llamada a API externa: orquestador con checkpoints atómicos, director de timing basado en ffprobe (no WPM estimado), validación de timestamps de ElevenLabs, y espera de fuentes en Playwright. El verificador de slides con Claude Visión es el diferenciador competitivo más claro — ningún competidor lo implementa — pero debe diferirse a v1.x para no bloquear el pipeline base.
+The recommended approach is to build backend integrations first (before any UI code), then the UI foundation (bridge + session state), and then phase pages in pipeline order. This sequence is dependency-driven: the UI pages call stage objects that must already exist, and each phase page unblocks the next. The `PipelineBridge` (background thread + `@st.fragment` polling of done markers) is the most architecturally critical new piece and must be solid before any long-running stage is connected to the UI.
 
-El orden de construcción recomendado por la investigación de arquitectura es estrictamente bottom-up: modelos Pydantic y workdir primero, orquestador con stubs segundo (valida checkpoints sin APIs reales), y etapas externas en capas progresivas (LLM → Playwright → ElevenLabs → FFmpeg → WhisperX). Este orden es no negociable: construir el orquestador antes de las etapas externas es la única forma de validar la idempotencia sin incurrir en costes de API durante el desarrollo.
+The top risks are: (1) pipeline artifacts stored in `st.session_state` instead of being read from `workdir/` on each rerun — this causes state divergence on page reload and is easy to get wrong; (2) long-running stages called synchronously in the Streamlit main thread, freezing the UI; (3) upstream checkpoint edits (e.g., script text changes) that do not cascade to invalidate downstream done markers, silently producing a video that does not match the current script; and (4) double-normalization artifacts when background music mixing is added to an assemble stage that already runs loudnorm. All four are preventable by design decisions made before writing UI code.
+
+---
+
+## Conflict Resolution
+
+### Audio Enhancement: FFmpeg-only vs noisereduce + pedalboard
+
+STACK.md recommends FFmpeg-only (`afftdn`/`arnndn` + `loudnorm` via subprocess). FEATURES.md proposes adding `noisereduce` + `pedalboard` as new Python-level dependencies.
+
+**Decision: FFmpeg-only. Do not add `noisereduce` or `pedalboard`.**
+
+Rationale:
+- The project constraint is explicit: FFmpeg via subprocess, no MoviePy, no heavy audio libs. `noisereduce` adds scipy/numpy signal processing overhead; `pedalboard` adds a compiled C++ extension — both for a use case that `afftdn=nr=6:nf=-25,loudnorm=I=-16:TP=-1.5:LRA=11` covers adequately.
+- PITFALLS.md (Pitfall 22) establishes that audio enhancement must run on a separate preview file and that WhisperX alignment must run on the **unprocessed original**. This order is the same whether the enhancement is Python-level or FFmpeg-level; FFmpeg-only is simpler to implement and easier to tune.
+- PITFALLS.md (Pitfall 23) warns that aggressive denoise produces metallic artefacts. Conservative FFmpeg defaults (`nr=6` not the default `nr=12`) deliver the same "suave por defecto" UX that FEATURES.md describes, without the extra dependency surface.
+- The MVP definition in FEATURES.md defers audio enhancement to v2.x, not v2.0.0 launch. This further reduces the urgency of a richer Python-level stack.
+
+**Implementation:** `utils/audio_enhance.py` calls `ffmpeg -i input -af "afftdn=nr=6:nf=-25,loudnorm=I=-16:TP=-1.5:LRA=11" output` via subprocess. The UI shows a preview (`st.audio`) of the enhanced file before the user confirms. WhisperX alignment always runs on the original unprocessed file.
+
+---
 
 ## Key Findings
 
 ### Recommended Stack
 
-El stack está completamente determinado y verificado. Python 3.11 es el target (balance estabilidad/velocidad; todas las librerías clave lo soportan). La gestión de entorno es con `uv` (pyproject.toml); la imagen Docker base es `mcr.microsoft.com/playwright/python:v1.60.0-noble` — esta imagen debe pinearse a exactamente la misma versión que `playwright` en pyproject.toml, o el pipeline falla con "browser executable not found". FFmpeg se invoca siempre via `subprocess` con lista de argumentos (nunca `shell=True`). Lucide icons deben servirse offline con `python-lucide` (BD SQLite embebida) — jamás desde CDN.
+The v1.60.0 stack is unchanged. Two production dependencies are added and one is promoted:
 
-**Core technologies:**
-- Python 3.11+: lenguaje base — requisito; balance estabilidad/velocidad; todas las librerías lo soportan
-- `anthropic >=0.104.1`: LLM API (storyboard, guion, verificador visión) — SDK oficial con visión base64/PNG; Structured Outputs disponibles desde Claude Sonnet 4.5+
-- `playwright >=1.60.0`: render HTML/CSS → PNG — única opción pixel-perfect para CSS moderno; sync API obligatoria (no async)
-- `jinja2 >=3.1.6`: templating HTML de slides — integración nativa con Playwright; permite theme.yaml → HTML
-- `elevenlabs >=2.49.0`: TTS con timestamps por carácter — sin pipeline extra de alineación en modo elevenlabs
-- `pydantic >=2.13.4`: I/O tipado entre etapas del pipeline — checkpoint serialization con model_dump_json/model_validate_json
-- `typer >=0.25.1`: CLI con subcomandos tipados — estándar actual para CLIs Python 3.10+; requiere Python >=3.10
-- `ffmpeg >=6.1` (binario sistema): montaje de vídeo — control total sobre filtros; invocación por subprocess con lista de argumentos
-- `rich >=15.0.0`: UX de terminal (progress, logs, prompts de aprobación) — companion natural de Typer
-- `uv` (latest): gestión de dependencias — 10-100x más rápido que pip; uv.lock multiplataforma
+- `streamlit>=1.58.0` — Python-only web UI framework; `st.session_state`, `st.fragment(run_every=...)`, `st.status`, `st.navigation` provide everything needed for the wizard; no JS or separate frontend
+- `openai>=2.38.0` — official SDK; `audio.speech.create()` for TTS + `audio.transcriptions.create(model="whisper-1", response_format="verbose_json", timestamp_granularities=["word"])` for the mandatory STT round-trip
+- `python-dotenv>=1.0` — promoted from `[dev]` to `[project.dependencies]`; the UI needs `OPENAI_API_KEY` at runtime
+
+No new audio processing libraries. FFmpeg built-in filters (`afftdn`, `arnndn`, `sidechaincompress`, `afade`, `amix`, `loudnorm`) cover all v2 audio needs.
+
+**Version constraints that matter:**
+- `streamlit>=1.58.0` requires Python >=3.10 (satisfied by project's Python 3.11+)
+- `openai>=2.38.0` is compatible with `anthropic>=0.104.1` (both use `httpx`; no conflict)
+- `st.fragment(run_every=...)` requires Streamlit >=1.37 (satisfied by >=1.58.0)
+- `st.dialog` for back-navigation confirmation requires Streamlit >=1.32 (satisfied)
 
 ### Expected Features
 
-**Must have (table stakes — v1):**
-- CLI typer + Pydantic config — punto de entrada del sistema; sin él no hay producto
-- Director de timing (WPM x duración, calibración empírica) — sin esto el vídeo nunca dura lo esperado
-- Storyboard generado por Claude — núcleo intelectual del pipeline
-- Guionista Claude calibrado por slide — narración WPM-calibrada, idioma configurable (español por defecto)
-- Slides modo `auto` (Jinja2 + Playwright → PNG 1920x1080) — camino feliz sin intervención; solo SVG Lucide offline
-- Voz ElevenLabs con timestamps — TTS de calidad; timestamps a nivel de carácter sin WhisperX
-- Subtítulos .srt/.vtt siempre generados — accesibilidad básica; coste cero adicional
-- Montaje FFmpeg 1080p 16:9 — entregable final; duraciones reales medidas con ffprobe (no WPM estimado)
-- Checkpoints reanudables (workdir/) — sin esto los fallos de API son bloqueantes para el usuario
-- `--dry-run` con estimación de coste/tokens — control de gasto antes de lanzar; feature rara en competencia
-- 4 niveles de automatización L1-L4 — human-in-the-loop configurable; diferenciador vs competencia fully-auto
-- Tests pytest mínimos (storyboard mockeado, timing, render de slide) — base de confianza del pipeline
+**Must have (v2.0.0 launch):**
+- Wizard with 6 gated phases and visual stepper
+- Phase gating: Approve button disabled until phase output is valid; confirmation dialog before navigating back
+- `invalidate_downstream(from_stage)` on back navigation and on any checkpoint edit
+- Auto-bullet generation from topic (Claude) + `st.data_editor` for in-place editing
+- Editable script per slide (`st.text_area`) with real-time WPM indicator and variation button
+- Slide thumbnails grid with ok/warning/fail badges from `verification_report.json`
+- Voice provider selector: ElevenLabs / OpenAI Audio / own recording
+- `@st.fragment(run_every="2s")` progress polling for all long-running stages
+- `st.video(str(path))` path-based for video preview in Phase 6
+- File upload written to disk immediately on receipt
+- Background music: file uploader + volume slider; FFmpeg `sidechaincompress` ducking + `afade`; `amix=normalize=0`
 
-**Should have (v1.x — tras validar pipeline base):**
-- Verificador de slides con Claude Visión (hybrid/manual) — diferenciador competitivo único; ningún competidor lo tiene
-- Slides modos `hybrid` + `manual` — flexibilidad para usuarios con diseño propio
-- Normalización loudness EBU R128 (dos pasadas FFmpeg) — calidad audio uniforme slide a slide
-- Crossfade audio/vídeo configurable — refinamiento perceptivo; bajo coste una vez FFmpeg integrado
-- Quemado de subtítulos (`--burn-subs`) — útil para distribución en RRSS
-- Ingestión de contexto (.pptx/.pdf/.md) — usuarios con materiales previos
-- QA report (duración real vs objetivo + LUFS)
-- Dockerfile multi-stage (Playwright + FFmpeg; WhisperX separado)
+**Should have (P1/P2 — high value, moderate complexity):**
+- OpenAI Audio TTS with mandatory Whisper STT round-trip for subtitles
+- Interactive slide variation loop (clear done marker + relaunch stage via bridge)
+- Cost-per-phase estimator surfaced in UI
+- Full-size slide thumbnail on click (`st.dialog` modal)
 
-**Defer (v2+):**
-- Voz modo `record` + WhisperX — alta complejidad de dependencias (torch, CUDA, pyannote); validar demanda primero
-- Export .pptx (python-pptx) — útil pero no core
-- Soporte 9:16 vertical — requiere refactor de templates
+**Defer to v2.x:**
+- Audio enhancement UI button (`utils/audio_enhance.py` ships but UI button deferred)
+- Project history / multiple workdir management
+- `theme.yaml` visual editor (color picker)
+- `.pptx` export button from UI
+
+**Anti-features (explicitly out of scope):**
+- Multi-user / auth (single-user localhost by design)
+- Real-time video streaming during generation
+- `st.audio_input` for in-browser recording (WebM/Opus degrades WhisperX quality)
+- Auto-advance between phases without human confirmation
 
 ### Architecture Approach
 
-La arquitectura es un pipeline secuencial con orquestador propio que itera sobre etapas que implementan `StageProtocol` (typing.Protocol). El orquestador pasa solo `WorkdirManager` a cada etapa — nunca objetos Python entre etapas. Cada etapa lee su input de `workdir/*.json` (Pydantic model_validate_json) y escribe su output a `workdir/*.json` (Pydantic model_dump_json), luego toca un marcador `.{stage}.done`. Esta separación permite reanudar el pipeline en cualquier punto sin re-ejecutar etapas anteriores, y hace cada etapa independientemente testeable con fixtures JSON. La aprobación humana (L1-L4) es responsabilidad exclusiva del orquestador — las etapas son lógica pura y nunca interactúan con stdin ni llaman subprocess directamente.
+The architecture is a three-tier stack: Streamlit UI layer → `workdir/` filesystem (sole source of truth) → Pipeline engine (existing, unmodified). The UI never stores pipeline artifacts in `st.session_state`; it reads from `workdir/*.json` on every rerun. Long-running stages run in background threads via `PipelineBridge`; the Streamlit main thread polls done markers via `@st.fragment(run_every="2s")`. The background thread never calls any `st.*` API.
 
 **Major components:**
-1. CLI (`cli.py` + typer) — parsea args, construye RunConfig (Pydantic), llama al orquestador
-2. Orchestrator (`orchestrator.py`) — loop secuencial, checkpoint checks, approval gates L1-L4; la única pieza que sabe sobre niveles de automatización
-3. Models (`models/`) — contratos Pydantic de I/O entre etapas; fuente de verdad del schema de checkpoints; sin lógica de negocio
-4. Stages (`stages/`) — una etapa por fichero; autocontenidas; sin lógica de aprobación ni subprocess directo
-5. Integrations (`integrations/`) — adaptadores delgados sobre Playwright, FFmpeg, WhisperX, Anthropic, ElevenLabs; aíslan efectos de lado
-6. WorkdirManager (`utils/workdir.py`) — autoridad única de paths en workdir/; todas las rutas pasan por aquí
-7. RichUI (`utils/rich_ui.py`) — progress bars, prompts de aprobación, display de reportes QA; mockeable en tests
+
+1. `ui/app.py` — Streamlit entry point with `st.navigation`; initializes session state with `workdir_path` (string) and `phase` (int 1–6)
+2. `ui/bridge.py` — `PipelineBridge`: launches stage in `threading.Thread`, polls `workdir.is_done()`, exposes `run_stage()` / `stage_status()` / error accessor; module-level thread dict persists across reruns
+3. `ui/state.py` — `PHASES` constant, `init_session_state()`, `advance_phase()`, `invalidate_downstream(workdir, from_stage)`
+4. `ui/pages/phase_N_*.py` — one file per phase; reads checkpoints from `WorkdirManager`, renders UI, dispatches to `PipelineBridge`
+5. `stages/voice_openai.py` — new stage implementing `CheckpointMixin`, same output contract as `VoiceElevenlabsStage` (`UnifiedTimings`); calls `integrations/openai.py`
+6. `utils/audio_enhance.py` — plain function, not a stage; `enhance_audio(input, output)` via FFmpeg `afftdn` + `loudnorm`; alignment always runs on original
+7. `integrations/ffmpeg.py` — extended with `build_music_mix_args()` returning `filter_complex` string; `amix=normalize=0` + `sidechaincompress` + `afade`
+8. `stages/assemble.py` — extended to read `RunConfig.bg_music`; single loudnorm pass on the final mix only when music is present
 
 ### Critical Pitfalls
 
-1. **No-idempotencia del pipeline** — Checkpoints basados en existencia + validación Pydantic del contenido (no solo existencia del fichero). Escritura atómica con `.tmp` + rename. Construir antes de cualquier llamada a API externa.
+1. **UI main-thread blocking (Pitfall 13)** — Any stage call >2 s in the Streamlit script thread freezes the entire UI. Prevention: `PipelineBridge.run_stage()` + `@st.fragment(run_every="2s")`. This must be established before connecting any stage to the UI.
 
-2. **Timestamps ElevenLabs congelados** (bug documentado en issue #607) — Validar que la secuencia de start_times es estrictamente creciente antes de guardar el checkpoint. Reintentar hasta 3 veces o usar WhisperX como fallback de alineación sobre el audio ya generado.
+2. **Pipeline artifacts in `st.session_state` (Pitfall 14 + Anti-Pattern 6)** — `session_state` is lost on browser reload. Prevention: `session_state` holds only `workdir_path` (string) and `phase` (int); everything else is read from `workdir/` on every rerun.
 
-3. **Fuentes no cargadas en screenshots Playwright** — Llamar `page.wait_for_function("document.fonts.ready")` + `page.screenshot(animations='disabled')` siempre. Servir fuentes localmente (jamás CDN). Instalar paquetes de fuentes del sistema en Dockerfile.
+3. **Downstream done markers not invalidated after upstream edit (Pitfall 24)** — Editing the script and saving to `workdir/script.json` leaves `.voice.done` and `.assemble.done` intact; the pipeline serves the old video. Prevention: implement `WorkdirManager.invalidate_downstream(from_stage)` before building any editable UI widget.
 
-4. **Drift de timing audio/slide acumulado** — Medir la duración real de cada slide_XX.mp3 con ffprobe antes del montaje. La suma de duraciones reales (no WPM estimado) es el offset de cada slide en el concat de FFmpeg.
+4. **OpenAI TTS has no timestamps — mandatory STT round-trip (Pitfall 17)** — `openai.audio.speech.create()` returns audio only. For subtitles, call `openai.audio.transcriptions.create(model="whisper-1", response_format="verbose_json", timestamp_granularities=["word"])`. Note: `gpt-4o-transcribe` does NOT support word timestamps.
 
-5. **WPM inexacto para ElevenLabs en español** — Calibración empírica obligatoria: 100 palabras con la voz y modelo exactos → medir duración real → WPM efectivo. Añadir margen -10% al presupuesto de palabras. Documentar en config.yaml.
+5. **`amix` with `normalize=1` reduces narration by -6 dB (Pitfall 19)** — Default `amix` behavior applies gain reduction to both inputs. Prevention: always `amix=inputs=2:normalize=0`; control music level via `volume=X` before the `amix`; loudnorm runs once on the final combined output only.
 
-6. **JSON Claude no parseable** — Usar Structured Outputs de la API (disponible Claude Sonnet 4.5+) con JSON Schema Pydantic. Nunca prompting manual para formato. Fijar max_tokens por presupuesto calculado.
+6. **`st.file_uploader` loses the file on the next rerun (Pitfall 16)** — If the uploader widget is not rendered in the next rerun, Streamlit discards the `UploadedFile` from memory. Prevention: write to `workdir/` immediately on upload.
 
-7. **Playwright versión no alineada en Docker** — Pinear exactamente la misma versión en pyproject.toml y en el FROM de la imagen Docker. Nunca Alpine (musl libc). Siempre imagen oficial Microsoft.
+7. **Double-normalization pumping artifact (Pitfall 20)** — The existing assemble stage already runs loudnorm (two passes). Adding background music and running loudnorm again produces dynamic compression artefacts. Prevention: when `bg_music` is set, skip per-narration loudnorm and run the single two-pass loudnorm only on the final mix.
+
+---
+
+## Cross-Cutting Themes for the Roadmapper
+
+These constraints must be respected across all phases — they are invariants, not per-phase concerns.
+
+### 1. `workdir` checkpoints are the sole source of truth
+
+`st.session_state` holds only `workdir_path` (string), `phase` (int 1–6), and ephemeral form inputs. Everything else — storyboard, script, slides paths, timings, voice output — is read from `workdir/*.json` via `WorkdirManager.read_checkpoint(name, Model)` on every Streamlit rerun. This makes the UI resilient to page reloads, reconnects, and Streamlit crashes.
+
+**Corollary — checkpoint invalidation:** Any UI action that modifies an upstream checkpoint must immediately call `WorkdirManager.invalidate_downstream(from_stage)`, deleting all done markers for stages after `from_stage`. Implement this in `WorkdirManager` before building any editable widget.
+
+### 2. Long-running stages run off the Streamlit script thread
+
+Stages that take >2 s (slides render, TTS synthesis, FFmpeg assembly) are launched via `PipelineBridge.run_stage()` in a background `threading.Thread`. The thread writes only to `workdir/` and never calls any `st.*` API. Progress is displayed via `@st.fragment(run_every="2s")` polling `workdir.is_done(stage_name)`.
+
+### 3. OpenAI Audio TTS requires a mandatory STT round-trip for subtitles
+
+OpenAI TTS returns audio bytes with no timing data. Word-level timestamps for subtitle generation must be obtained by calling `openai.audio.transcriptions.create(model="whisper-1", ...)` on the generated audio. This adds 10–30 s per slide and must be designed into `VoiceOpenAIStage` from day one. If subtitles are disabled, the STT round-trip can be skipped and `timings.json` filled with proportional duration estimates.
+
+### 4. Background music: single loudnorm pass on the final mix
+
+When background music is present: (a) music level is controlled with `volume=X` before `amix`; (b) `amix=inputs=2:normalize=0` always; (c) ducking via `sidechaincompress`; (d) `afade` timing calculated from `ffprobe`-measured actual duration, not target duration; (e) loudnorm two-pass runs on the final mix only; per-narration loudnorm is skipped.
+
+### 5. Audio enhancement: align on original, enhance for output only
+
+`utils/audio_enhance.py` produces an enhanced file for the final video only. WhisperX alignment always runs on the original unprocessed audio. The enhanced file replaces the original only after alignment timestamps have been written to `timings.json`.
+
+---
 
 ## Implications for Roadmap
 
-Based on research, suggested phase structure:
+### Suggested Phase Structure (7 phases)
 
-### Phase 1: Foundation — Orquestador + Modelos + Skeleton
+#### Phase 1: Backend integrations (no UI)
 
-**Rationale:** La investigación de arquitectura es explícita: construir el orquestador y los contratos Pydantic antes de cualquier etapa externa. El pitfall de no-idempotencia solo se puede validar sin costes de API si el orquestador tiene checkpoints operativos antes de conectar SDKs reales. Esta fase es el riesgo arquitectónico más alto y debe resolverse primero.
+**Rationale:** UI pages call stage objects that must exist and be tested first. All three new backend capabilities are independent of each other and of the UI.
 
-**Delivers:** CLI funcional con typer; RunConfig validado; WorkdirManager; StageProtocol; orquestador con loop de checkpoints + approval gates L1-L4 (etapas stub); todos los modelos Pydantic de I/O; test de idempotencia doble-ejecución; `--dry-run` skeleton.
+**Delivers:**
+- `VoiceMode.openai` in `models/config.py` + `RunConfig.bg_music` field
+- `integrations/openai.py` — OpenAI Audio API wrapper
+- `stages/voice_openai.py` — `VoiceOpenAIStage` with STT round-trip; same `UnifiedTimings` output contract as ElevenLabs stage
+- `stages/voice.py` — openai dispatch branch
+- `utils/audio_enhance.py` — `enhance_audio()` via FFmpeg `afftdn=nr=6:nf=-25` + `loudnorm`
+- `integrations/ffmpeg.py` — `build_music_mix_args()` with `amix=normalize=0` + `sidechaincompress` + `afade`
+- `stages/assemble.py` — reads `config.bg_music`; skips per-narration loudnorm when music is present; single loudnorm on final mix
 
-**Addresses:** Table stakes: CLI, orquestador con checkpoints, 4 niveles de automatización.
+**Avoids:** Pitfalls 17, 18, 19, 20, 21, 22
 
-**Avoids:** Pitfall #10 (no-idempotencia) — es el fundamento de esta fase.
+**Research flags:** Standard patterns — ARCHITECTURE.md provides concrete implementation for each; no additional research needed
 
-### Phase 2: LLM Pipeline — Storyboard + Timing + Guionista
+---
 
-**Rationale:** Las etapas LLM dependen solo de la foundation (Phase 1). El director de timing es lógica pura (sin APIs externas), testeable completamente offline. El storyboard y guionista establecen el patrón de Structured Outputs + validación Pydantic + retry exponencial, reutilizado luego en el verificador.
+#### Phase 2: UI foundation — bridge + state layer
 
-**Delivers:** `integrations/anthropic.py` con retry (tenacity) + Structured Outputs; storyboard.json; timings.json (lógica WPM + presupuesto por slide); script.json; cost_estimator para `--dry-run`; tests con mocks Anthropic.
+**Rationale:** The bridge and state module are shared by all six phase pages. Build and validate in isolation before connecting any page.
 
-**Uses:** `anthropic >=0.104.1`, `pydantic >=2.13.4`, `tenacity`.
+**Delivers:**
+- `ui/state.py` — `PHASES` constant, `init_session_state()`, `advance_phase()`
+- `WorkdirManager.invalidate_downstream(from_stage)` — deletes done markers for all stages after a given stage
+- `ui/bridge.py` — `PipelineBridge`: `run_stage()`, `stage_status()`, `RunStatus` enum, error accessor; module-level thread dict with `daemon=True`
+- `ui/app.py` — `st.navigation` router with 6 empty phase pages; workdir setup; session state initialization
+- Workdir lockfile (`workdir/.lock`) preventing two-tab state corruption
 
-**Avoids:** Pitfall #9 (JSON Claude no parseable) — patrón Structured Outputs establecido aquí para todo el pipeline.
+**Avoids:** Pitfalls 13, 14, 24, 26; Anti-Patterns 6, 7, 9, 10
 
-### Phase 3: Slides Auto — Jinja2 + Playwright + Tema
+---
 
-**Rationale:** Las slides modo `auto` son el camino feliz de mayor impacto visual. Dependen de storyboard y script (Phase 2). Esta fase incluye el pitfall más sutil (fuentes Playwright) y debe validarse con un test de render de slide antes de seguir. Es donde se fija el patrón `sync_playwright` — elegir async aquí rompe todo lo construido después.
+#### Phase 3: Phase 1 page — Contenido
 
-**Delivers:** `integrations/playwright.py` con sync_playwright, wait de fuentes, animations=disabled; slides_auto.py con Jinja2 + theme.yaml → HTML → PNG 1920x1080; template HTML base; iconos Lucide offline; test de smoke de render con fuente del tema.
+**Rationale:** First phase page; no upstream stage dependencies; validates the wizard navigation pattern end-to-end before adding complex stage integrations.
 
-**Uses:** `playwright >=1.60.0` (sync), `jinja2 >=3.1.6`, `python-lucide`, `pyyaml`.
+**Delivers:**
+- `ui/pages/phase_1_contenido.py`
+- Topic + duration form with validation
+- Bullet auto-generation (direct Claude call with `st.spinner`; not a pipeline stage)
+- `st.data_editor` for bullet editing
+- Approve gate: writes `workdir/bullets.yaml`, advances to Phase 2
 
-**Avoids:** Pitfall #1 (fuentes no cargadas), Pitfall #2 (gráficos JS no renderizados), Anti-pattern async_playwright.
+---
 
-### Phase 4: Voz + Subtítulos — ElevenLabs + SRT/VTT
+#### Phase 4: Phase 2 + 3 pages — Guion and Slides
 
-**Rationale:** La voz depende del script (Phase 2). Es donde se establece la validación de timestamps — el bug de timestamps congelados debe detectarse aquí, no en el montaje. Los subtítulos son lógica pura derivada de los timings.
+**Rationale:** These two phases share the same "edit + variation + invalidate" pattern. Build them together.
 
-**Delivers:** `integrations/elevenlabs.py` con convert_with_timestamps, validación de secuencia start_times, retry hasta 3 intentos; voice_elevenlabs.py → audio/slide_XX.mp3 + timings.json; subtitles.py → output.srt + output.vtt (timestamps en segundos decimales, framerate-independiente); calibración empírica de WPM documentada.
+**Delivers:**
+- `ui/pages/phase_2_guion.py` — triggers storyboard → timing → scriptwriter via bridge; editable `st.text_area` per slide; variation button clears scriptwriter done marker + relaunches; WPM indicator; Approve gate
+- `ui/pages/phase_3_slides.py` — triggers slides dispatch + verify via bridge; PNG thumbnail grid; badge ok/warning/fail from `verification_report.json`; variation loop; file uploader for hybrid/manual; Approve gate
 
-**Uses:** `elevenlabs >=2.49.0`.
+**Avoids:** Pitfall 24 (downstream invalidation on edit); Anti-Pattern 8 (full pipeline re-run for single stage variation)
 
-**Avoids:** Pitfall #5 (timestamps congelados), Pitfall #4 (calibración WPM), Pitfall #8 (subtítulos desfasados por framerate).
+---
 
-### Phase 5: Montaje Final — FFmpeg + QA
+#### Phase 5: Phase 4 page — Voz
 
-**Rationale:** El montaje es la etapa de integración final. Aquí se resuelven los pitfalls de sincronía de crossfade y loudnorm — ambos requieren spikes de prueba con clip de test antes de integrar en el pipeline general. El pipeline end-to-end completo es verificable por primera vez en esta fase.
+**Rationale:** Voice is the most technically complex phase (three provider paths + OpenAI STT round-trip). Build after slides so upstream checkpoints are exercised.
 
-**Delivers:** `integrations/ffmpeg.py` fluent builder (subprocess list, sin shell=True, captura stderr); assemble.py con concat usando duraciones medidas por ffprobe, crossfade xfade/acrossfade verificado, quemado de subtítulos con paths escapados, flag `--burn-subs`; normalización loudness EBU R128 dos pasadas; qa.py → qa_report.json (duración real vs objetivo, LUFS medido); pipeline end-to-end funcional.
+**Delivers:**
+- `ui/pages/phase_4_voz.py`
+- `st.radio` provider selector: ElevenLabs / OpenAI Audio / own recording
+- ElevenLabs path: voice_id config → bridge → `st.audio` per slide
+- OpenAI Audio path: voice selector (9 voices) → `VoiceOpenAIStage` via bridge → STT round-trip → `st.audio`; informational latency note
+- Own recording path: per-slide file uploader → immediate write to `workdir/audio_user/`; optional enhance button → `enhance_audio()` → side-by-side `st.audio` preview; WhisperX alignment on original
+- Approve gate: `timings.json` present and all slides have non-empty word timestamps
 
-**Uses:** `ffmpeg >=6.1` (subprocess), `ffprobe`.
+**Avoids:** Pitfalls 16, 17, 18, 22, 23
 
-**Avoids:** Pitfall #3 (drift timing), Pitfall #6 (crossfade desincronizado), Pitfall #7 (loudnorm single-pass), Pitfall #8 (subtítulos desfasados).
+---
 
-### Phase 6: Slides Hybrid/Manual + Verificador Claude Vision (v1.x)
+#### Phase 6: Phase 5 + 6 pages — Extras and Assembly
 
-**Rationale:** Los modos hybrid/manual son diferenciadores pero se difieren porque no bloquean el pipeline base. El verificador con Claude Vision es el diferenciador competitivo más valioso del proyecto — ningún competidor lo implementa — y requiere que slides y guion estén estables para poder validarlo.
+**Rationale:** Extras only stores config; Assembly is terminal and depends on all upstream outputs. Pair them.
 
-**Delivers:** slides_hybrid.py (propuesta JSON por slide + pausa orquestador); slides_manual.py (validación PNGs del usuario); verify_slides.py (rasterizado PyMuPDF/pdf2image → Claude Vision → VerificationReport JSON por slide); context.py (ingestión .pptx/.pdf/.md); integración de modos hybrid/manual en approval gates L1-L4.
+**Delivers:**
+- `ui/pages/phase_5_extras.py` — subtitles toggle + burn-subs checkbox; music file uploader (written to `workdir/bg_music.*` immediately); volume slider; transition crossfade selector; all stored in `st.session_state["run_config"]`; Approve gate (always enabled)
+- `ui/pages/phase_6_ensamble.py` — triggers assemble via bridge (with full `run_config`); `@st.fragment(run_every="2s")` progress; `st.video(str(output_path))` path-based on DONE; `st.download_button`
 
-**Uses:** `anthropic` (vision base64 PNG), `PyMuPDF >=1.27.2.3`, `pdf2image >=1.17.0`, `python-pptx >=1.0.2`.
+**Avoids:** Pitfalls 19, 20, 21, 25
 
-### Phase 7: Docker + Empaquetado + Modo Record (v2)
+---
 
-**Rationale:** Docker es el último paso — las versiones deben estar pineadas antes de construir la imagen. WhisperX se separa en servicio Docker independiente para mantener la imagen principal ligera (~2 GB). El modo record (sounddevice + WhisperX) es v2 por su complejidad de dependencias (torch, CUDA, pyannote).
+#### Phase 7: Polish, entry point, Docker, tests
 
-**Delivers:** Dockerfile principal (playwright:v1.60.0-noble + FFmpeg + Poppler); Dockerfile separado WhisperX (torch CUDA, modelos pre-descargados en build); README con instrucciones completas; voice_record.py + align.py + integrations/whisperx.py.
+**Delivers:**
+- `pyproject.toml`: `streamlit>=1.58.0`, `openai>=2.38.0` to `[project.dependencies]`; `python-dotenv>=1.0` promoted; `avideo-studio` entry point
+- `.streamlit/config.toml`: `server.address = "127.0.0.1"`; `server.maxUploadSize = 100`
+- Dockerfile: `EXPOSE 8501`; `CMD` with `--server.headless=true --server.address=0.0.0.0`
+- Unit tests: bridge thread launch, done-marker detection, `invalidate_downstream` correctness, phase page smoke tests, music mix args (`normalize=0` assertion), audio enhance output validation
 
-**Uses:** `sounddevice`, `soundfile`, `whisperx` (torch 2.5.1 pineado), Docker.
+**Avoids:** Security mistake (Streamlit exposed on 0.0.0.0 in dev)
 
-**Avoids:** Pitfall #11 (WhisperX imagen pesada), Pitfall #12 (Playwright version mismatch en Docker).
+---
 
 ### Phase Ordering Rationale
 
-- **Foundation primero (Phase 1):** El orquestador con checkpoints es la base de idempotencia. Construirlo antes de cualquier llamada a API externa permite validar la lógica de reanudación sin coste y sin mocking complejo.
-- **LLM antes que renders (Phase 2 → 3):** El storyboard define el schema de slides. Las etapas de rendering dependen de storyboard.json — construir primero el contrato LLM evita iterar sobre el schema mientras Playwright ya está integrado.
-- **Voz antes que montaje (Phase 4 → 5):** Los timestamps del audio son el input crítico del montaje. Validar el pitfall de timestamps congelados antes de construir el concat de FFmpeg evita bugs silenciosos de sincronía.
-- **Verificador diferido (Phase 6):** Alto valor pero alta complejidad. Diferirlo a v1.x permite lanzar en modo `auto` con alta confianza, y añadir el verificador sobre una base estable.
-- **Docker al final (Phase 7):** Las versiones deben estar pineadas antes de construir la imagen. Construir Docker primero lleva a iterar el Dockerfile continuamente mientras el stack evoluciona.
+- Backend before UI: phase pages call stage objects; those objects must exist and be independently tested
+- Bridge before pages: all pages share `PipelineBridge`; its correctness is a precondition for all page work
+- Phase pages in pipeline order: each page reads checkpoints written by the previous phase; building in order allows end-to-end testing as each page lands
+- Phase 5 (Extras) paired with Phase 6 (Assembly): Extras stores only config that Assembly consumes; they form a logical unit
+- Polish/Docker last: no user-visible value until the full flow is exercisable end-to-end
 
 ### Research Flags
 
-Phases likely needing deeper research during planning:
+Phases needing deeper research: none. All four research files are HIGH confidence with verified, implementation-ready API patterns. ARCHITECTURE.md (Layer A → D build order) maps directly onto the 7-phase structure above.
 
-- **Phase 5 (Montaje FFmpeg):** El crossfade xfade/acrossfade requiere un spike experimental con clip de test antes de integrar. Las duraciones relativas de los filtros no son simétricas por documentación y requieren verificación empírica. Recomendado: task de spike dedicada antes de la tarea de integración.
-- **Phase 7 (Docker + WhisperX):** La instalación de torch con CUDA en Docker tiene combinaciones de versiones sensibles (torch 2.5.1 + CUDA 12.4 + pyannote.audio 3.3). Requiere verificar la matriz de compatibilidad en el momento de construcción del Dockerfile.
+Standard patterns (skip additional research): all phases.
 
-Phases with standard patterns (skip research-phase):
-
-- **Phase 1 (Foundation):** Pydantic v2, typer, WorkdirManager — patrones bien documentados y verificados.
-- **Phase 2 (LLM Pipeline):** Structured Outputs de Anthropic está documentado oficialmente. Tenacity para backoff es estándar.
-- **Phase 3 (Playwright Slides):** sync_playwright + wait_for_function + animations=disabled está documentado en la guía oficial.
-- **Phase 4 (ElevenLabs + Subtítulos):** convert_with_timestamps está documentado. Formato SRT en segundos decimales es estándar.
+---
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Todas las versiones verificadas en PyPI y fuentes oficiales; compatibilidades documentadas en tablas explícitas |
-| Features | HIGH | Fundamentado en papers de investigación 2024-2025 (AutoLectures, PresentAgent) y análisis de competidores directos (SlideNarrator) |
-| Architecture | HIGH | Patrones Protocol/Pydantic/checkpoint verificados contra fuentes oficiales; orden de construcción por capas documentado |
-| Pitfalls | HIGH | Mayoría verificados contra issues reales de GitHub (ElevenLabs #607, Playwright #35972, WhisperX #1247) y documentación oficial |
+| Stack | HIGH | All versions verified on PyPI (May 2026); no version conflicts between new and existing deps |
+| Features | HIGH / MEDIUM* | *OpenAI Audio TTS no-timestamps is community-confirmed; STT round-trip workaround is HIGH confidence |
+| Architecture | HIGH | Patterns drawn from existing source code + official Streamlit/threading docs |
+| Pitfalls | HIGH | 26 pitfalls verified; v1 pitfalls confirmed in v1.60.0 production audit; v2 pitfalls verified against official docs |
 
 **Overall confidence:** HIGH
 
-### Gaps to Address
+### Gaps to Address During Implementation
 
-- **WPM efectivo de ElevenLabs en español:** El valor 150 WPM es una estimación. La calibración empírica debe ejecutarse como primera tarea de Phase 4 antes de fijar el presupuesto de palabras del guionista.
-- **Compatibilidad torch + whisperx + pyannote.audio en Docker:** La cadena de dependencias es sensible. Usar torch==2.5.1 como ancla; verificar la matriz de compatibilidad al construir el Dockerfile de Phase 7.
-- **Crossfade xfade/acrossfade sync empírica:** La documentación de FFmpeg no garantiza simetría temporal entre filtros de vídeo y audio. Requiere spike con clip de test en Phase 5 antes de integrar.
-- **Tamaño de imagen para Claude Visión en verificador:** El pipeline envía PNGs 1920x1080 con deviceScaleFactor=2. Verificar preprocesado que respeta el límite de 20 MB y la dimensión máxima ~1568px que Claude Visión reduce internamente.
+- **FFmpeg `arnndn` model file** — `arnndn` requires a bundled `.rnnn` model file. Use `afftdn` (no model file, FFT-based, more predictable artefacts) as the default in `audio_enhance.py`; `arnndn` as an optional upgrade.
+- **`whisper-1` Spanish word-timestamp quality** — Acceptable but not perfect for Spanish. If subtitle quality is inadequate, fallback is WhisperX (already in the `[record]` optional group). Not a blocking gap.
+- **WPM calibration for Spanish + ElevenLabs** — Carried forward from v1.60.0 technical debt. Not a v2.0.0 blocker.
+- **Lockfile cross-platform** — `fcntl.flock` is Unix/macOS only. Acceptable given the project targets macOS + Docker (Linux) for v2.0.0.
+
+---
 
 ## Sources
 
 ### Primary (HIGH confidence)
 
-- anthropic SDK Python (Context7) — visión base64, Structured Outputs, instalación — verificado 2026-05-25
-- playwright-python (Context7) — Page.screenshot(), sync API, Docker — verificado 2026-05-25
-- elevenlabs-python (Context7) — convert_with_timestamps, stream_with_timestamps — verificado 2026-05-25
-- pydantic v2 (Context7) — BaseModel, model_dump_json(), model_validate_json() — verificado 2026-05-25
-- typer (Context7) — app.callback(), subcomandos — verificado 2026-05-25
-- https://pypi.org/project/anthropic/ — versión 0.104.1 verificada mayo 2026
-- https://pypi.org/project/playwright/ — versión 1.60.0 verificada mayo 2026
-- https://pypi.org/project/elevenlabs/ — versión 2.49.0 verificada mayo 2026
-- https://pypi.org/project/pydantic/ — versión 2.13.4 verificada mayo 2026
-- https://playwright.dev/docs/docker — imagen oficial Microsoft verificada
-- https://elevenlabs.io/docs/api-reference/text-to-speech/convert-with-timestamps — endpoint verificado
-- https://docs.claude.com/en/docs/build-with-claude/structured-outputs — disponible Sonnet 4.5+
-- https://platform.claude.com/docs/en/build-with-claude/vision — límites de imagen verificados
-- https://github.com/m-bain/whisperX — API verificada; torch 2.5.1 ancla de compatibilidad
+- Context7 `/streamlit/streamlit` — `st.session_state`, `st.fragment(run_every=...)`, `st.status`, `st.navigation`, `st.dialog`, `st.file_uploader`, threading
+- Context7 `/openai/openai-python` — `audio.speech.create()`, `audio.transcriptions.create()`, whisper-1 word timestamps
+- Context7 `/anthropic/anthropic-sdk-python` — vision, structured outputs
+- Context7 `/playwright/playwright-python` — `Page.screenshot()`, `animations='disabled'`
+- [streamlit · PyPI](https://pypi.org/project/streamlit/) — v1.58.0 verified May 2026
+- [openai · PyPI](https://pypi.org/project/openai/) — v2.38.0 verified May 2026
+- [FFmpeg Filters Documentation](https://ffmpeg.org/ffmpeg-filters.html) — `afftdn`, `sidechaincompress`, `afade`, `loudnorm`, `amix`
+- [Streamlit threading docs](https://docs.streamlit.io/develop/concepts/design/multithreading)
+- [Streamlit st.fragment docs](https://docs.streamlit.io/develop/api-reference/execution-flow/st.fragment)
+- Existing source code: `src/avideo/orchestrator.py`, `stages/base.py`, `utils/workdir.py` (v1.60.0 passing audit)
 
 ### Secondary (MEDIUM confidence)
 
-- https://arxiv.org/html/2505.02966v1 — AutoLectures (arXiv 2025): patrón pipeline narrado + TTS sync
-- https://arxiv.org/html/2507.04036v1 — PresentAgent (arXiv 2024): comparación de enfoques de generación de presentaciones
-- https://32blog.com/en/ffmpeg/ffmpeg-audio-normalization-loudnorm — procedimiento dos pasadas EBU R128
-- https://gist.github.com/royshil/369e175960718b5a03e40f279b131788 — patrón crossfade xfade/acrossfade FFmpeg
-- https://www.prefect.io/blog/the-importance-of-idempotent-data-pipelines-for-resilience — patrón done markers
-- https://peps.python.org/pep-0544/ — justificación typing.Protocol sobre ABC
-
-### Tertiary (LOW confidence — verificar en implementación)
-
-- https://github.com/elevenlabs/elevenlabs-python/issues/607 — bug timestamps congelados; comportamiento no determinista
-- https://github.com/jim60105/docker-whisperX — referencia Dockerfile multi-stage WhisperX + CUDA
-- https://github.com/microsoft/playwright/issues/35972 — workaround espera de fuentes documentado en issues
+- [OpenAI TTS no timestamps — community forum](https://community.openai.com/t/timestamped-captions-for-tts-api-feature-request/538339)
+- [OpenAI speech-to-text word timestamps](https://platform.openai.com/docs/guides/speech-to-text/timestamps) — `whisper-1` supports word granularity; `gpt-4o-transcribe` does not
+- [ElevenLabs: Speech Timestamp Stagnation Bug #607](https://github.com/elevenlabs/elevenlabs-python/issues/607)
+- [FFmpeg sidechaincompress ducking (mailing list Nov 2024)](https://ffmpeg.org/pipermail/ffmpeg-user/2024-November/058872.html)
 
 ---
-*Research completed: 2026-05-25*
+
+*Research completed: 2026-05-29*
 *Ready for roadmap: yes*

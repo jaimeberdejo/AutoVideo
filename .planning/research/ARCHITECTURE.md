@@ -1,474 +1,552 @@
 # Architecture Research
 
-**Domain:** Sequential CLI pipeline with resumable checkpoints, typed I/O, own orchestrator — Python 3.11+
-**Researched:** 2026-05-25
+**Domain:** Sequential CLI pipeline with resumable checkpoints, typed I/O, own orchestrator — Python 3.11+; v2.0.0 adds Streamlit UI layer that orchestrates the existing pipeline as a headless engine
+**Researched:** 2026-05-29
 **Confidence:** HIGH
 
 ---
 
 ## Standard Architecture
 
-### System Overview
+### System Overview (v2.0.0 — Studio Guiado)
 
 ```
-┌──────────────────────────────────────────────────────────────────────┐
-│                          CLI Layer (typer)                            │
-│  generate --bullets --duration --voice --slides-mode --level         │
-└────────────────────────────────┬─────────────────────────────────────┘
-                                 │ RunConfig (pydantic)
-┌────────────────────────────────▼─────────────────────────────────────┐
-│                       Orchestrator (sequential)                       │
-│                                                                       │
-│  for stage in PIPELINE:                                               │
-│    if stage.is_done(workdir):  continue   ← idempotency              │
-│    if stage.needs_approval(level): pause  ← human-in-the-loop        │
-│    output = stage.run(input_model, workdir)                           │
-│    stage.mark_done(workdir, output)                                   │
-└──────┬──────┬──────┬──────┬──────┬──────┬──────┬──────┬─────────────┘
-       │      │      │      │      │      │      │      │
-┌──────▼─┐ ┌──▼───┐ ┌▼───┐ ┌▼────┐ ┌▼───┐ ┌▼────▼┐ ┌▼────┐ ┌▼────────┐
-│context │ │story │ │tim │ │scri │ │sli │ │verify│ │voice│ │align/  │
-│ingest  │ │board │ │ing │ │ptwr │ │des │ │(vis) │ │TTS/ │ │subs/   │
-│        │ │      │ │    │ │iter │ │    │ │      │ │rec  │ │assemble│
-└────────┘ └──────┘ └────┘ └─────┘ └────┘ └──────┘ └─────┘ └────────┘
-       │      │      │      │      │      │      │      │
-┌──────▼──────▼──────▼──────▼──────▼──────▼──────▼──────▼─────────────┐
-│                         workdir/ (state layer)                        │
-│                                                                       │
-│  JSON checkpoints         Artifact files       Done markers           │
-│  context.json             design_proposal/     .context.done          │
-│  storyboard.json          slides/              .storyboard.done       │
-│  script.json              slides_user/         .timing.done           │
-│  verification_report.json audio/               .script.done           │
-│  timings.json             subs/                .slides.done           │
-│                           output.mp4            ...                   │
-└──────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────┐
+│                     Streamlit UI Layer                          │
+│                 (src/avideo/ui/app.py + pages/)                 │
+│                                                                 │
+│  Phase 1      Phase 2       Phase 3      Phase 4     Phase 5-6 │
+│  Contenido → Guion+Slides → Diapositivas → Voz → Extras+Ensam  │
+│                                                                 │
+│  st.session_state["phase"] — current phase                      │
+│  st.session_state["workdir"] — active run workdir               │
+│  Human-gate buttons: [Approve ✓] / [Re-generate ↻] per phase  │
+└──────────┬────────────────────────────────────────────────────┘
+           │  reads/writes via WorkdirManager
+           │  runs stages via subprocess OR direct call
+           │
+┌──────────▼────────────────────────────────────────────────────┐
+│                     State Layer (workdir/)                      │
+│                                                                 │
+│  JSON checkpoints (primary source of truth for UI)             │
+│  context.json  storyboard.json  script.json  timings.json      │
+│  verification_report.json  voice.json  assembly.json           │
+│                                                                 │
+│  Artifact dirs                    Done markers                  │
+│  slides/  audio/  subs/           .context.done .storyboard... │
+│  design_proposal/  slides_user/   (presence = phase complete)  │
+│  output.mp4                                                     │
+└──────────┬────────────────────────────────────────────────────┘
+           │
+┌──────────▼────────────────────────────────────────────────────┐
+│              Pipeline Engine (existing — NOT rewritten)         │
+│                                                                 │
+│  CLI: avideo generate --level 4 --bullets ... --duration ...   │
+│  Orchestrator: PIPELINE_STAGES loop, checkpoint/done logic     │
+│  Stages: StageProtocol + CheckpointMixin (unchanged)           │
+│                                                                 │
+│  NEW stage slots:                                              │
+│    voice provider: openai (new VoiceMode enum value)            │
+│    assemble: music_mix pre-step (new FFmpeg filter in stage)    │
+│    audio enhance: new standalone function (not a full stage)    │
+└────────────────────────────────────────────────────────────────┘
 ```
 
-### Component Responsibilities
+### Component Responsibilities (v2.0.0 delta — full table includes v1.60.0 entries)
 
-| Component | Responsibility | Communicates With |
-|-----------|----------------|-------------------|
-| CLI (`cli.py`) | Parse args, build `RunConfig`, call orchestrator | Orchestrator |
-| Orchestrator (`orchestrator.py`) | Drive stage sequence, checkpoint checks, approval gates | All stages, workdir |
-| Stage base (`stages/base.py`) | `StageProtocol`: `run()`, `is_done()`, `mark_done()` | Orchestrator |
-| context (`stages/context.py`) | Ingest `.pptx`/`.pdf`/`.md`, extract text → `ContextOutput` | Orchestrator |
-| storyboard (`stages/storyboard.py`) | Claude API → slide list → `StoryboardOutput` | Anthropic SDK |
-| timing (`stages/timing.py`) | WPM math, duration budgets → `TimingOutput` | Pure logic |
-| scriptwriter (`stages/scriptwriter.py`) | Claude API → per-slide narration → `ScriptOutput` | Anthropic SDK |
-| slides_auto (`stages/slides_auto.py`) | Jinja2 + theme.yaml → HTML → Playwright → PNG | Playwright sync |
-| slides_hybrid (`stages/slides_hybrid.py`) | Design proposal JSON, waits for user PNG upload | Orchestrator (pause) |
-| slides_manual (`stages/slides_manual.py`) | Validates user-provided PNGs exist → passthrough | Filesystem |
-| verify_slides (`stages/verify_slides.py`) | Claude vision → per-slide verdict → `VerificationReport` | Anthropic SDK |
-| voice_elevenlabs (`stages/voice_elevenlabs.py`) | ElevenLabs `convert_with_timestamps` → WAV + char timings | ElevenLabs SDK |
-| voice_record (`stages/voice_record.py`) | Export segmented script; ingest `slide_XX.wav` files | Filesystem |
-| align (`stages/align.py`) | WhisperX forced-align → word-level timings (record only) | WhisperX (sync) |
-| subtitles (`stages/subtitles.py`) | Timings → `.srt` + `.vtt` files | Pure logic |
-| assemble (`stages/assemble.py`) | FFmpeg subprocess → final MP4 | FFmpeg subprocess |
-| qa (`stages/qa.py`) | FFmpeg `loudnorm` + duration check → QA report | FFmpeg subprocess |
+| Component | Responsibility | Status | Communicates With |
+|-----------|----------------|--------|-------------------|
+| `ui/app.py` | Streamlit entry point; `st.navigation` router; initialize `session_state` | NEW | All UI pages |
+| `ui/pages/phase_1.py` | Topic + duration form; bullet auto-gen (Claude) or manual; approve gate | NEW | WorkdirManager, AnthropicIntegration |
+| `ui/pages/phase_2.py` | Storyboard + script review, edit, variation requests; approve gate | NEW | WorkdirManager, PipelineBridge |
+| `ui/pages/phase_3.py` | Slide thumbnails; edit/variation UI; OR upload + vision-verify | NEW | WorkdirManager, PipelineBridge |
+| `ui/pages/phase_4.py` | Voice provider selector; audio upload + enhance button | NEW | WorkdirManager, PipelineBridge |
+| `ui/pages/phase_5.py` | Subtitles toggle, music-file upload, transition config | NEW | WorkdirManager |
+| `ui/pages/phase_6.py` | Assemble trigger; st.video preview; download button | NEW | WorkdirManager, PipelineBridge |
+| `ui/bridge.py` | `PipelineBridge`: runs long stages in a background thread; polls workdir checkpoints; exposes `run_stage()`, `is_done()`, `read_checkpoint()` | NEW | orchestrator, WorkdirManager |
+| `ui/state.py` | `init_session_state()`, phase constants, enum for `RunStatus` | NEW | All UI pages |
+| CLI (`cli.py`) | `avideo generate` — unchanged; now also callable headless by bridge | UNCHANGED | Orchestrator |
+| Orchestrator | Sequential stage loop, approval gates — in headless mode (L4 always) | UNCHANGED | Stages, WorkdirManager |
+| `stages/voice.py` | Dispatcher — adds `VoiceMode.openai` branch | MODIFIED | VoiceOpenAIStage (new) |
+| `integrations/openai.py` | OpenAI Audio API thin wrapper | NEW | `openai` SDK |
+| `stages/voice_openai.py` | OpenAI TTS stage producing `UnifiedTimings` | NEW | `integrations/openai.py` |
+| `stages/assemble.py` | FFmpeg assembly — adds optional `music_path` ducking/fade pre-step | MODIFIED | `integrations/ffmpeg.py` |
+| `integrations/ffmpeg.py` | `build_music_mix_args()` for ducking + fade | MODIFIED | subprocess |
+| `utils/audio_enhance.py` | `enhance_audio(input_path, output_path)` — FFmpeg denoise + loudnorm | NEW | subprocess (ffmpeg) |
+| All v1.60.0 stages | Unchanged contracts, unchanged checkpoints | UNCHANGED | — |
 
 ---
 
-## Recommended Project Structure
+## Recommended Project Structure (v2.0.0 additions)
 
 ```
-auto-video-narrado/
-├── pyproject.toml              # uv-managed, entry point: avideo
-├── Dockerfile
-├── config.yaml                 # default voice_id, WPM, theme path, etc.
-├── src/
-│   └── avideo/
-│       ├── __init__.py
-│       ├── cli.py              # typer app, RunConfig validation
-│       ├── orchestrator.py     # sequential loop, checkpoint/approval logic
-│       ├── models/             # all pydantic I/O contracts
-│       │   ├── __init__.py
-│       │   ├── config.py       # RunConfig (from CLI args + config.yaml)
-│       │   ├── context.py      # ContextOutput
-│       │   ├── storyboard.py   # StoryboardOutput, SlideSpec
-│       │   ├── timing.py       # TimingOutput, SlideTiming
-│       │   ├── script.py       # ScriptOutput, SlideScript
-│       │   ├── slides.py       # SlidesOutput (paths to PNGs)
-│       │   ├── verification.py # VerificationReport, SlideVerdict
-│       │   ├── voice.py        # VoiceOutput, CharAlignment
-│       │   └── assembly.py     # AssemblyOutput, QAReport
-│       ├── stages/
-│       │   ├── __init__.py
-│       │   ├── base.py         # StageProtocol (typing.Protocol), CheckpointMixin
-│       │   ├── context.py
-│       │   ├── storyboard.py
-│       │   ├── timing.py
-│       │   ├── scriptwriter.py
-│       │   ├── slides_auto.py
-│       │   ├── slides_hybrid.py
-│       │   ├── slides_manual.py
-│       │   ├── verify_slides.py
-│       │   ├── voice_elevenlabs.py
-│       │   ├── voice_record.py
-│       │   ├── align.py
-│       │   ├── subtitles.py
-│       │   ├── assemble.py
-│       │   └── qa.py
-│       ├── integrations/       # thin wrappers around external APIs/tools
-│       │   ├── __init__.py
-│       │   ├── anthropic.py    # Claude client (text + vision)
-│       │   ├── elevenlabs.py   # TTS + timestamps client
-│       │   ├── playwright.py   # sync_playwright wrapper, html→png
-│       │   ├── whisperx.py     # load model + align wrapper
-│       │   └── ffmpeg.py       # subprocess wrapper, builder pattern
-│       ├── templates/
-│       │   ├── slide_base.html.j2
-│       │   └── theme.yaml
-│       └── utils/
-│           ├── workdir.py      # WorkdirManager: paths, done markers, JSON r/w
-│           ├── rich_ui.py      # Rich console helpers, progress, approval prompts
-│           └── cost_estimator.py  # --dry-run token/cost estimation
-└── tests/
-    ├── test_storyboard.py      # mocked Anthropic
-    ├── test_timing.py
-    └── test_slides_render.py   # single slide smoke test
+src/avideo/
+├── cli.py                        # unchanged
+├── orchestrator.py               # unchanged
+├── models/
+│   └── config.py                 # MODIFIED: VoiceMode.openai added
+├── stages/
+│   ├── voice.py                  # MODIFIED: openai branch added
+│   ├── voice_openai.py           # NEW: OpenAI Audio TTS stage
+│   └── assemble.py               # MODIFIED: music_path param + ducking
+├── integrations/
+│   ├── openai.py                 # NEW: openai TTS wrapper
+│   └── ffmpeg.py                 # MODIFIED: music mix args
+├── utils/
+│   └── audio_enhance.py          # NEW: denoise + loudnorm helper
+└── ui/                           # NEW: entire subtree
+    ├── app.py                    # Streamlit entry point + st.navigation
+    ├── state.py                  # session_state init, constants
+    ├── bridge.py                 # PipelineBridge (thread + checkpoint poll)
+    └── pages/
+        ├── phase_1_contenido.py
+        ├── phase_2_guion.py
+        ├── phase_3_slides.py
+        ├── phase_4_voz.py
+        ├── phase_5_extras.py
+        └── phase_6_ensamble.py
 ```
-
-### Structure Rationale
-
-- **`models/`:** All Pydantic models live here, separated from stage logic. Stages import from `models/`; this prevents circular imports and makes contracts inspectable independently.
-- **`stages/`:** One file per pipeline stage. Each is self-contained: knows how to run itself, check if already done, and write its checkpoint. The orchestrator does not contain business logic.
-- **`integrations/`:** Thin adapters over external libraries (Playwright, FFmpeg, WhisperX, Anthropic, ElevenLabs). Stages call integrations, not SDKs directly. This isolates all subprocess/async boundaries to one layer, making mocking in tests trivial.
-- **`utils/workdir.py`:** Single authority for all filesystem paths. Stages call `workdir.slides_dir()`, never build paths manually.
 
 ---
 
 ## Architectural Patterns
 
-### Pattern 1: StageProtocol + CheckpointMixin
+### Pattern 1: workdir Checkpoints as Source of Truth (NOT session_state)
 
-**What:** Every stage implements a `typing.Protocol` that enforces a uniform `run(input, workdir)` interface and a `CheckpointMixin` that manages the `.{stage}.done` marker file and JSON deserialization.
+**What:** The Streamlit UI never stores pipeline artifacts in `st.session_state`. The only things in `session_state` are: current phase index, path to active `workdir/`, UI-transient values (form inputs, edit buffers, approval status for the current session). All pipeline data — storyboard, script, slides paths, timings — is always read from `workdir/*.json` via `WorkdirManager.read_checkpoint()`.
 
-**When to use:** Always — the entire pipeline consistency depends on this contract.
+**When to use:** Always, without exception. This is the key architectural decision for v2.0.0.
 
-**Trade-offs:** `typing.Protocol` (structural subtyping) is preferred over ABC here because stages are independent files loaded by name, and Protocol avoids the diamond-inheritance fragility of mixing ABC with Pydantic models.
+**Why:** Streamlit reruns the entire script on every widget interaction. If stage outputs lived in `session_state`, they would be re-serialised and re-deserialised on every button click. More importantly, if the user closes and re-opens the browser, or if Streamlit crashes, checkpoint-based state survives while `session_state` is lost. The existing pipeline already writes all state to `workdir/` — the UI is just a reader of that same truth.
+
+**Trade-offs:** Every phase page must call `workdir.read_checkpoint(name, Model)` to get data. Slightly more I/O than session_state. Acceptable because checkpoints are small JSON files read in <1ms.
 
 ```python
-# stages/base.py
-from typing import Protocol, runtime_checkable
+# ui/pages/phase_2_guion.py (pattern example)
+import streamlit as st
+from avideo.utils.workdir import WorkdirManager
+from avideo.models.script import ScriptOutput
+
+def render():
+    workdir = WorkdirManager(st.session_state["workdir_path"])
+
+    # Read directly from checkpoint — do NOT cache in session_state
+    if not workdir.is_done("scriptwriter"):
+        st.info("Script not yet generated.")
+        return
+
+    script: ScriptOutput = workdir.read_checkpoint("script", ScriptOutput)
+    for slide in script.slides:
+        st.text_area(f"Slide {slide.slide_index}", value=slide.narration, key=f"narr_{slide.slide_index}")
+```
+
+### Pattern 2: PipelineBridge — Background Thread + Checkpoint Polling
+
+**What:** Long-running pipeline steps (Playwright render, ElevenLabs TTS, FFmpeg encode) are executed in a Python `threading.Thread` launched by `PipelineBridge.run_stage()`. Streamlit uses `@st.fragment(run_every="2s")` to periodically poll whether the done marker exists, then updates the UI when the stage completes. The background thread writes to `workdir/` using `WorkdirManager` — it never calls Streamlit APIs directly.
+
+**When to use:** Any stage that takes more than 2 seconds. In practice: slides render, voice synthesis, assembly.
+
+**Why:** Streamlit re-executes the entire script on every interaction. If a long-running stage ran synchronously in the main script thread, the UI would be unresponsive and the browser would show a spinner for minutes. The background-thread pattern avoids this by decoupling execution from the rerun cycle. The polling fragment (`run_every`) gives the user live status without manual refresh.
+
+**Concrete implementation:**
+
+```python
+# ui/bridge.py
+import threading
+from enum import Enum
 from pathlib import Path
-from pydantic import BaseModel
+from avideo.utils.workdir import WorkdirManager
+from avideo.stages.base import StageProtocol
+from avideo.models.config import RunConfig
 
-class WorkdirManager:
-    def __init__(self, root: Path): self.root = root
-    def done_marker(self, stage: str) -> Path:
-        return self.root / f".{stage}.done"
-    def is_done(self, stage: str) -> bool:
-        return self.done_marker(stage).exists()
-    def mark_done(self, stage: str, output: BaseModel) -> None:
-        self.done_marker(stage).touch()
+class RunStatus(Enum):
+    IDLE = "idle"
+    RUNNING = "running"
+    DONE = "done"
+    ERROR = "error"
 
-@runtime_checkable
-class StageProtocol(Protocol):
-    stage_name: str
-    def run(self, workdir: WorkdirManager) -> BaseModel: ...
-    def is_done(self, workdir: WorkdirManager) -> bool: ...
+_threads: dict[str, threading.Thread] = {}
+_errors: dict[str, Exception] = {}
+
+def run_stage(stage: StageProtocol, workdir: WorkdirManager, config: RunConfig) -> None:
+    """Launch stage in a background thread. Idempotent: no-op if already running or done."""
+    key = stage.stage_name
+    if key in _threads and _threads[key].is_alive():
+        return  # already running
+    if workdir.is_done(key):
+        return  # already done
+
+    def _target():
+        try:
+            output = stage.run(workdir, config)
+            workdir.write_checkpoint(stage.checkpoint_name, output)
+            workdir.mark_done(key)
+        except Exception as exc:
+            _errors[key] = exc
+
+    t = threading.Thread(target=_target, daemon=True)
+    _threads[key] = t
+    t.start()
+
+def stage_status(stage_name: str, workdir: WorkdirManager) -> RunStatus:
+    if stage_name in _errors:
+        return RunStatus.ERROR
+    if workdir.is_done(stage_name):
+        return RunStatus.DONE
+    if stage_name in _threads and _threads[stage_name].is_alive():
+        return RunStatus.RUNNING
+    return RunStatus.IDLE
 ```
-
-### Pattern 2: JSON Checkpoint Files as the Contract Surface
-
-**What:** Each stage reads its input exclusively from JSON files in `workdir/` (loaded via `Model.model_validate_json(path.read_text())`), writes its output to a JSON file, then touches the `.done` marker. The orchestrator never passes Python objects between stages — only `WorkdirManager` is threaded through.
-
-**When to use:** Always. This enables resuming mid-pipeline without re-running upstream stages, and makes each stage independently testable with fixture JSON files.
-
-**Trade-offs:** Slight overhead of JSON serialization for in-process data. Acceptable because stages are coarse-grained (the expensive work is API calls and Playwright/FFmpeg, not serialization).
 
 ```python
-# Pattern: stage reads previous stage's JSON output
-class ScriptwriterStage:
-    stage_name = "script"
-    def run(self, workdir: WorkdirManager) -> ScriptOutput:
-        storyboard = StoryboardOutput.model_validate_json(
-            (workdir.root / "storyboard.json").read_text()
-        )
-        timing = TimingOutput.model_validate_json(
-            (workdir.root / "timings.json").read_text()
-        )
-        # ... call Claude, produce ScriptOutput
-        output = ScriptOutput(slides=[...])
-        (workdir.root / "script.json").write_text(output.model_dump_json(indent=2))
-        return output
+# ui/pages/phase_3_slides.py (polling fragment)
+import streamlit as st
+from avideo.ui.bridge import run_stage, stage_status, RunStatus
+from avideo.stages.slides_auto import SlidesAutoStage
+
+@st.fragment(run_every="2s")
+def _poll_slides_status(workdir, config):
+    status = stage_status("slides", workdir)
+    if status == RunStatus.RUNNING:
+        st.spinner("Rendering slides...")
+        st.progress(0.5, text="Playwright is rendering PNGs...")
+    elif status == RunStatus.DONE:
+        slides_out = workdir.read_checkpoint("slides", SlidesOutput)
+        cols = st.columns(min(4, len(slides_out.png_paths)))
+        for i, path in enumerate(slides_out.png_paths):
+            cols[i % 4].image(path, use_column_width=True)
+        st.rerun()  # exit fragment loop once done
+    elif status == RunStatus.ERROR:
+        st.error("Slide render failed.")
 ```
 
-### Pattern 3: Approval Gate by Level (L1–L4)
+**Important:** The background thread MUST NOT call any `st.*` function. Write to `workdir/`, write to a `threading.Event` or a shared dict that the main thread polls. Use `add_script_run_ctx` only if absolutely necessary (internal Streamlit API, not officially supported).
 
-**What:** The orchestrator holds a mapping of `(stage_name, approval_event) → minimum_level_required`. Before calling `stage.run()`, it checks whether the configured `--level` is below the threshold. If so, it calls `rich_ui.pause_for_approval(stage_name)` and waits for stdin.
+### Pattern 3: Phase Wizard with Mandatory Human Gate
 
-**When to use:** Applied by the orchestrator — stages are unaware of levels. Stages are pure logic; the orchestrator decides whether to pause.
+**What:** The UI has a linear phase progression stored in `st.session_state["phase"]` (integer 1–6). Each phase page renders its content and ends with an "Approve" button that advances the phase. Phases cannot be skipped forward. Navigation backwards is read-only (user can review but not re-run past phases without resetting).
 
-**Trade-offs:** Clean separation: stages don't carry approval logic, which means they can be called programmatically in tests without triggering interactive prompts.
+**When to use:** Always — the wizard is the core UX promise of Studio Guiado.
+
+**Trade-offs:** Linear flow is simple to reason about but the user cannot jump to Phase 4 without completing Phase 3. This is intentional (the pipeline has real dependencies: no voice without a script, no assembly without audio). For power users, the existing CLI remains the escape hatch.
 
 ```python
-# orchestrator.py (simplified)
-APPROVAL_THRESHOLDS: dict[str, int] = {
-    "after_storyboard":         2,  # L1, L2 pause; L3, L4 skip
-    "after_design_proposal":    1,  # all levels pause (hybrid/manual)
-    "after_verify_slides_fail": 2,  # L1, L2 always pause on fail
-    "after_verify_slides_ok":   4,  # only L4 never pauses even on ok
-}
+# ui/state.py
+PHASES = [
+    (1, "Contenido"),
+    (2, "Guion + Slides"),
+    (3, "Diapositivas"),
+    (4, "Voz"),
+    (5, "Extras"),
+    (6, "Ensamblaje"),
+]
 
-def should_pause(event: str, level: int) -> bool:
-    return level <= APPROVAL_THRESHOLDS.get(event, 0)
+def init_session_state():
+    if "phase" not in st.session_state:
+        st.session_state["phase"] = 1
+    if "workdir_path" not in st.session_state:
+        st.session_state["workdir_path"] = None  # set on first run
+    if "run_config" not in st.session_state:
+        st.session_state["run_config"] = {}     # dict of RunConfig kwargs
+
+def advance_phase():
+    if st.session_state["phase"] < 6:
+        st.session_state["phase"] += 1
+        st.rerun()
 ```
 
-**Level semantics:**
-- L1: pause after every stage (fully supervised)
-- L2: pause after storyboard, design proposal, verify (supervised creative steps)
-- L3: auto-continue if `verify_slides` all `ok`; pause on any `fail`
-- L4: fully automatic — no pauses
+### Pattern 4: Interactive Edit / Variation Loop
 
-### Pattern 4: Data/Artifact Boundary
+**What:** For phases 2 (guion) and 3 (slides in auto mode), the user can: (a) edit text/parameters inline, (b) click "Regenerate variation" which clears the done marker for that stage and relaunches it via `PipelineBridge`, or (c) approve and proceed. Clearing the done marker causes the orchestrator (or the bridge's direct stage call) to treat the stage as not done and re-run it.
 
-**What:** There are two kinds of stage outputs. JSON outputs (data) are Pydantic models written to `workdir/*.json`. Artifact outputs (binary) are files written to `workdir/slides/`, `workdir/audio/`, `workdir/subs/`, `workdir/output.mp4`. The done marker signals that the artifact directory is complete and stable.
+**When to use:** Phases 2 and 3 only.
 
-**When to use:** The distinction matters for idempotency checks: a stage is "done" when its done marker exists, regardless of whether you can reconstruct the Python model. For artifact stages (slides, audio, assemble), the done marker additionally implies the artifact directory is complete.
+**Implementation:** To request a variation:
+1. Clear done marker: `(workdir.root / ".scriptwriter.done").unlink(missing_ok=True)`
+2. Optionally clear JSON checkpoint: `(workdir.root / "script.json").unlink(missing_ok=True)` (forces re-generation even if checkpoint exists)
+3. Call `bridge.run_stage(ScriptwriterStage(), workdir, config)`
+4. Fragment polling detects RUNNING → shows spinner; detects DONE → shows new script
 
-```
-Data checkpoints (JSON, re-parseable):
-  workdir/context.json          → ContextOutput
-  workdir/storyboard.json       → StoryboardOutput
-  workdir/timings.json          → TimingOutput
-  workdir/script.json           → ScriptOutput
-  workdir/verification_report.json → VerificationReport
+**For inline edits (not regeneration):** The user edits a `st.text_area`; on confirm, write the edited text back to the checkpoint JSON using `workdir.write_checkpoint("script", modified_script_model)` and touch the done marker. The downstream stages (slides, voice) remain valid; clear their done markers only if the user requests a full re-render.
 
-Artifact directories (binary, not re-parseable):
-  workdir/design_proposal/      → slide_XX.json design specs
-  workdir/slides/ (auto)        → slide_01.png … slide_N.png
-  workdir/slides_user/          → user-provided PNGs (hybrid/manual)
-  workdir/audio/                → slide_01.wav … slide_N.wav
-  workdir/subs/                 → output.srt, output.vtt
-  workdir/output.mp4            → final video
-```
+### Pattern 5: New Backend Pieces — Integration Points
 
-### Pattern 5: Integration Adapters (subprocess + sync wrappers)
+**What:** The three new backend features (OpenAI Audio, audio enhancement, background music) slot into the pipeline without disrupting the existing stage sequence.
 
-**What:** All external I/O lives in `integrations/`. The rest of the codebase never directly calls `subprocess.run`, `sync_playwright`, or `whisperx.load_model`. This isolates side effects, makes testing via mocks trivial, and ensures consistent error handling.
+#### OpenAI Audio (new VoiceMode)
 
-**When to use:** Always — especially important for FFmpeg and Playwright which are subprocess/sync-heavy and fail in opaque ways.
+- `VoiceMode.openai` added to the `VoiceMode` enum in `models/config.py`
+- `VoiceStage.run()` dispatcher gains an `openai` branch (alongside `elevenlabs` and `record`)
+- New `stages/voice_openai.py` implements `CheckpointMixin`, `stage_name="voice"`, calls `integrations/openai.py`, returns `UnifiedTimings` — identical output contract to `VoiceElevenlabsStage`
+- New `integrations/openai.py` wraps `openai.audio.speech.create(model="tts-1-hd", ...)` — OpenAI Audio does not return character-level timestamps, so word timing must be extracted via a lightweight WhisperX align pass (same as `record` mode). This means `openai` mode shares the `align` stage path.
+- `OPENAI_API_KEY` loaded via `load_dotenv()` already in `cli.py`; UI sets via env or `.env` file
+
+#### Audio Enhancement (uploaded audio, pre-assembly)
+
+- NOT a pipeline stage — implemented as `utils/audio_enhance.py: enhance_audio(input_path, output_path)`, a plain function that runs FFmpeg `arnndn` (denoising) + loudnorm pass
+- Called by Phase 4 UI page on button press: reads uploaded audio, calls `enhance_audio`, writes enhanced file to `workdir/audio/slide_XX_enhanced.mp3`, updates the voice checkpoint to reference the enhanced paths
+- Does NOT modify PIPELINE_STAGES
+
+#### Background Music (user-supplied file, Phase 5)
+
+- `AssembleStage.run()` gains an optional `music_path: Optional[Path]` read from `RunConfig` (new field `bg_music: Optional[Path]`)
+- `integrations/ffmpeg.py` gains `build_music_mix_args(music_path, ducking_db, fade_out_s)` returning a filter_complex string for FFmpeg amix + sidechaincompress (ducking) + afade (fade out)
+- UI Phase 5 page: `st.file_uploader("Background music", type=["mp3","wav"])` → saves to `workdir/bg_music.mp3` → sets `st.session_state["run_config"]["bg_music"]` → used when triggering assembly
+- The stage remains in PIPELINE_STAGES at position 9 (assemble); no new stage needed
 
 ---
 
 ## Data Flow
 
-### Pipeline Data Flow (sequential, checkpoint-gated)
+### Streamlit ↔ workdir Data Flow
 
 ```
-CLI args + config.yaml
+Browser (user action)
+    │  widget interaction triggers Streamlit rerun
+    ▼
+app.py (st.navigation → loads current phase page)
+    │  reads st.session_state["phase"], ["workdir_path"], ["run_config"]
+    ▼
+phase_N_xxx.py
+    │  1. read checkpoints via WorkdirManager.read_checkpoint(name, Model)
+    │  2. render data (st.text_area, st.image, st.video, etc.)
+    │  3. on user action: call PipelineBridge.run_stage() or edit checkpoint
+    │  4. on Approve: advance_phase() → st.rerun()
+    ▼
+PipelineBridge (bridge.py)
+    │  launches threading.Thread (no Streamlit calls inside thread)
+    ▼
+Stage.run(workdir, config)
+    │  reads upstream checkpoints from workdir/
+    │  calls integrations (Anthropic, ElevenLabs, Playwright, FFmpeg)
+    │  writes output checkpoint atomically (tmp→rename)
+    │  touches .{stage}.done marker
+    ▼
+workdir/ (filesystem)
     │
-    ▼  RunConfig (pydantic)
-Orchestrator
-    │
-    ├─► [context] → context.json (ContextOutput)
-    │
-    ├─► [storyboard] ← context.json → storyboard.json (StoryboardOutput)
-    │       Claude API (text)
-    │
-    ├─► [timing] ← storyboard.json → timings.json (TimingOutput)
-    │       Pure math (WPM × word_count)
-    │
-    ├─► [scriptwriter] ← storyboard.json + timings.json → script.json (ScriptOutput)
-    │       Claude API (text)
-    │
-    ├─► [slides] ← script.json + storyboard.json + theme.yaml
-    │   ├── auto:   Jinja2 → HTML → Playwright sync → PNG → workdir/slides/
-    │   ├── hybrid: Claude → design_proposal/ → [PAUSE: user uploads PNGs]
-    │   │           → workdir/slides_user/
-    │   └── manual: validate workdir/slides_user/ exists and is complete
-    │
-    ├─► [verify_slides] ← script.json + slides/ → verification_report.json
-    │       Claude vision API  (hybrid/manual only)
-    │       [PAUSE on fail if level ≤ 2]
-    │
-    ├─► [voice]
-    │   ├── elevenlabs: script.json → ElevenLabs API → audio/ + char timings
-    │   └── record:     export script segments → [PAUSE: user records] → audio/
-    │
-    ├─► [align] ← audio/ + script.json → word-level timings (record mode only)
-    │       WhisperX (synchronous, CPU/GPU)
-    │
-    ├─► [subtitles] ← timings.json OR align output → subs/output.srt + .vtt
-    │       Pure string formatting
-    │
-    ├─► [assemble] ← slides/ + audio/ + subs/ → output.mp4
-    │       FFmpeg subprocess (filter_complex concat + subtitles burn optional)
-    │
-    └─► [qa] ← output.mp4 → qa_report.json
-            FFmpeg ffprobe + loudnorm analysis
+    └── @st.fragment(run_every="2s") polls workdir.is_done(stage_name)
+        → on DONE: re-read checkpoint, render results, stop polling
 ```
 
-### Timing Source per Voice Mode
+### Phase → Pipeline Stage Mapping
+
+| UI Phase | Pipeline Stages Triggered | Human Gate | Approval Unlocks |
+|----------|--------------------------|------------|-----------------|
+| Phase 1 — Contenido | (bullet generation via direct Claude call — not an existing stage) | Approve bullets | Phase 2 |
+| Phase 2 — Guion | storyboard → timing → scriptwriter | Approve script | Phase 3 |
+| Phase 3 — Diapositivas | slides (dispatch: auto/hybrid/manual) + verify | Approve slides | Phase 4 |
+| Phase 4 — Voz | voice (elevenlabs / openai / record) + align | Approve audio | Phase 5 |
+| Phase 5 — Extras | subs + (music config — no stage trigger; injected into assemble config) | Approve config | Phase 6 |
+| Phase 6 — Ensamblaje | assemble | Download/done | — |
+
+**Note on Phase 1:** Bullet auto-generation is a lightweight Claude call invoked directly from the UI (not a pipeline stage). It does NOT write a checkpoint — it populates `st.session_state["bullets_yaml"]` (edited/approved in the UI), then writes `workdir/bullets.yaml` before triggering Phase 2. This keeps the pipeline contract intact (`bullets` is a Path in `RunConfig`).
+
+### Checkpoint Read Map per Phase Page
 
 ```
-voice=elevenlabs  →  ElevenLabs character timestamps → subtitles (no WhisperX)
-voice=record      →  WhisperX forced alignment        → subtitles
+Phase 1:  reads nothing from workdir (upstream of pipeline)
+Phase 2:  reads storyboard.json, script.json (after generation)
+Phase 3:  reads storyboard.json, script.json (for context); reads slides/ dir (thumbnails)
+          reads verification_report.json (after verify, hybrid/manual)
+Phase 4:  reads script.json (script display); reads voice.json (audio paths)
+Phase 5:  reads voice.json (audio paths for preview); reads subs/ (preview subtitles)
+Phase 6:  reads assembly.json (output path); reads workdir/output.mp4 for st.video
 ```
 
-### Key Data Flows
+---
 
-1. **Storyboard → everything downstream:** `StoryboardOutput.slides` is the master list of slides. All subsequent stages iterate over it; the count drives timing math, script length, slide filenames (`slide_01.png`, etc.).
-2. **Timing → script calibration:** `SlideTiming.word_budget` (= duration_s × WPM / 60) is injected into the scriptwriter prompt so Claude targets the correct length per slide.
-3. **Design proposal → slides_hybrid:** `design_proposal/slide_XX.json` is a structured Claude output (color palette, layout, icon names, text blocks) that the user reads to produce PNGs. It is data (JSON), not an artifact.
-4. **Verification report → orchestrator decision:** `SlideVerdict.status ∈ {ok, warning, fail}` drives the L1–L4 gate logic. The orchestrator checks `any(v.status == "fail")` before deciding to pause.
-5. **Char timings → subtitles:** ElevenLabs returns character-level start/end arrays. The subtitles stage groups them into word/phrase segments and writes SRT/VTT.
+## Long-Running Execution Model
+
+### Decision: Background Thread (not subprocess) for Stage Calls
+
+Use `threading.Thread` to call stage logic directly, not `subprocess.run("avideo generate ...")`.
+
+**Rationale:**
+- Direct stage calls avoid the subprocess startup overhead and CLI argument serialization
+- The bridge can import and call individual stages (`SlidesAutoStage().run(workdir, config)`), allowing UI-triggered re-runs of individual stages without re-running the full pipeline
+- Thread safety is safe here because the pipeline is single-user (localhost, one session) and each stage only writes to its own checkpoint paths — no shared mutable state between concurrent stages
+- The background thread reads/writes `workdir/` (filesystem), which is inherently thread-safe at the atomic-rename level already implemented in `WorkdirManager.write_checkpoint`
+
+**Exception: Full pipeline run.** When the user clicks "Run full pipeline" or runs headless from Phase 1, use `subprocess.Popen(["avideo", "generate", "--level", "4", ...])` to invoke the existing CLI. This is the escape hatch for batch runs and avoids re-importing the entire stage chain in the Streamlit process.
+
+### Polling Strategy
+
+```
+Stage starts     Stage running          Stage done
+    │                  │                    │
+PipelineBridge.run_stage()
+    │
+    └── threading.Thread(target=stage.run) → writes workdir/
+                                                   │
+                       @st.fragment(run_every="2s") polls is_done()
+                       → shows spinner while RUNNING
+                       → re-reads checkpoint + re-renders on DONE
+                       → st.rerun() to exit fragment auto-rerun
+```
+
+The `run_every="2s"` fragment is the correct Streamlit primitive for polling background jobs (HIGH confidence — official docs: `automate-fragment-reruns`). It re-executes only the fragment subtree (not the full page), keeping UI responsive.
 
 ---
 
 ## Integration Points
 
-### External Services
+### New External Services
 
-| Service | Integration Pattern | Notes |
-|---------|---------------------|-------|
-| Anthropic Claude | Synchronous SDK (`anthropic.Anthropic().messages.create`); vision via `image` content block with base64 PNG | Always wrap in retry with exponential backoff; handle `RateLimitError`. Use `model_dump_json()` on response to log for debugging. |
-| ElevenLabs TTS | Synchronous SDK (`client.text_to_speech.convert_with_timestamps`); returns `audio_base64` + `alignment.characters` arrays | Decode base64 and write WAV directly. `output_format=pcm_44100` avoids re-encoding before FFmpeg. |
-| Playwright (HTML→PNG) | `sync_playwright()` context manager; launch Chromium, `page.goto(html_file_uri)`, `page.screenshot(path=, full_page=False, clip={w:1920, h:1080})` | Use `sync_playwright` (not async) because slides stage is called from synchronous orchestrator. One browser instance per pipeline run (reuse across slides). Do NOT use `async_playwright` in subprocess/thread — causes event loop conflicts. |
-| WhisperX | Synchronous function calls (`whisperx.load_model`, `whisperx.align`); synchronous only — no async API | Heavy GPU/CPU load. Call from main thread. Only invoked in `record` mode. Load model once per pipeline run (cache in stage state). |
-| FFmpeg | `subprocess.run(["ffmpeg", ...], capture_output=True, check=True)` with `CalledProcessError` handling | Build command as list (never shell=True). Wrap in `integrations/ffmpeg.py` with a fluent builder. Always capture stderr for error messages. |
+| Service | Integration Pattern | Stage/Module | Notes |
+|---------|---------------------|--------------|-------|
+| OpenAI Audio API | `openai.audio.speech.create(model="tts-1-hd", voice=..., input=...)` → bytes | `integrations/openai.py` → `stages/voice_openai.py` | No character timestamps from OpenAI → requires WhisperX align pass (same as record mode); `OPENAI_API_KEY` in `.env` |
+| FFmpeg arnndn (denoising) | `ffmpeg -i input -af arnndn=m=cb.rnnn output` | `utils/audio_enhance.py` | arnndn model file must be bundled or downloaded; alternatively use `anlmdn` (no model file needed) |
+| FFmpeg amix + ducking | `amix=inputs=2[...];asidechain...` filter_complex | `integrations/ffmpeg.py: build_music_mix_args()` | Injected into assemble stage args when `bg_music` is set |
+| Streamlit (UI framework) | `streamlit run src/avideo/ui/app.py` | `ui/` subtree | `streamlit>=1.40.0` for `st.fragment(run_every=...)` support |
 
-### Internal Boundaries
+### Internal Boundaries (v2.0.0 additions)
 
 | Boundary | Communication | Notes |
 |----------|---------------|-------|
-| CLI → Orchestrator | `RunConfig` Pydantic model | All user-specified options coerced and validated at this boundary |
-| Orchestrator → Stage | `WorkdirManager` passed by reference; stage reads/writes its own JSON | Orchestrator does not pass Python models between stages |
-| Stage → Model | `Model.model_validate_json(path.read_text())` for input; `path.write_text(output.model_dump_json())` for output | Pydantic is the only serialization mechanism |
-| Stage → Integration | Direct function call (no queue/bus) | Integrations raise typed exceptions; stages catch and re-raise with context |
-| Orchestrator → Rich UI | `rich_ui.pause_for_approval(stage, report)` → blocks on `input()` | Isolated in `utils/rich_ui.py`; mockable in tests via monkeypatching |
+| UI page → WorkdirManager | Direct instantiation with `st.session_state["workdir_path"]` | WorkdirManager is stateless and safe to instantiate per-rerun |
+| UI page → PipelineBridge | `bridge.run_stage(stage_instance, workdir, config)` | Bridge holds thread dict in module-level state (persists across reruns) |
+| PipelineBridge → Stage | Direct Python call: `stage.run(workdir, config)` | Thread-safe because each stage owns its own checkpoint paths |
+| Phase page → assemble | Reads `st.session_state["run_config"]` to build `RunConfig` with `bg_music` | `RunConfig` is constructed fresh each time assemble is triggered |
+| UI app → CLI (full run) | `subprocess.Popen(["avideo", "generate", "--level", "4", ...])` | Used only for "run all" headless mode; individual phases use direct stage calls |
+
+---
+
+## Build Order (v2.0.0 — dependency-aware)
+
+All existing pipeline code (Layers 0–9 from v1.60.0) is complete and frozen. Build new components in this sequence:
+
+```
+Layer A — New backend integrations (independent of UI)
+  1. models/config.py: add VoiceMode.openai + RunConfig.bg_music field
+  2. integrations/openai.py: OpenAI Audio API wrapper
+  3. stages/voice_openai.py: VoiceOpenAIStage (CheckpointMixin, stage_name="voice")
+  4. stages/voice.py: add openai dispatch branch
+  5. utils/audio_enhance.py: enhance_audio() (FFmpeg arnndn/anlmdn + loudnorm)
+  6. integrations/ffmpeg.py: build_music_mix_args() + integrate into build_assemble_args
+  7. stages/assemble.py: read config.bg_music, call music mix if set
+
+Layer B — UI foundation (no page logic, just structure)
+  8. ui/state.py: PHASES constant, init_session_state(), advance_phase()
+  9. ui/bridge.py: PipelineBridge — run_stage(), stage_status(), error accessor
+  10. ui/app.py: st.navigation with 6 pages; session_state init; workdir setup
+      → Validates: can load app, navigate between empty phase pages
+
+Layer C — Phase pages in pipeline order (each unblocks the next)
+  11. ui/pages/phase_1_contenido.py
+      - Topic + duration form
+      - Bullet auto-gen (direct Anthropic call)
+      - Approve → write workdir/bullets.yaml, advance to Phase 2
+  12. ui/pages/phase_2_guion.py
+      - Trigger storyboard → timing → scriptwriter via bridge (3 stages)
+      - Poll done markers; show spinner per stage
+      - Editable script text areas
+      - Variation button (clear done marker + re-run)
+      - Approve → advance_phase()
+  13. ui/pages/phase_3_slides.py
+      - Trigger slides dispatch + verify via bridge
+      - Poll; show PNG thumbnails (st.image) per slide
+      - For hybrid/manual: st.file_uploader for user slides
+      - Variation button (clear slides done + re-run)
+      - Approve → advance_phase()
+  14. ui/pages/phase_4_voz.py
+      - Voice provider selector (elevenlabs / openai / record)
+      - Trigger voice + align stages via bridge
+      - st.audio preview per slide
+      - File uploader for own audio (sets audio paths directly)
+      - Enhance button → utils/audio_enhance.py
+      - Approve → advance_phase()
+  15. ui/pages/phase_5_extras.py
+      - Subtitles toggle (burn_subs flag)
+      - Music file uploader → save to workdir/bg_music.mp3
+      - Transition crossfade slider
+      - All stored in session_state["run_config"]
+      - Approve → advance_phase() (no stage triggered here)
+  16. ui/pages/phase_6_ensamble.py
+      - Trigger assemble stage via bridge
+      - Poll; st.video(workdir/output.mp4) on DONE
+      - st.download_button for output.mp4
+
+Layer D — Polish + entry point
+  17. pyproject.toml: add streamlit + openai to dependencies
+      Add [project.scripts]: avideo-studio = "avideo.ui.app:main"
+  18. Dockerfile: add streamlit; EXPOSE 8501; CMD streamlit run ...
+  19. Tests: bridge unit tests (thread launch, done detection); phase page smoke tests
+```
+
+**Critical dependency note:** Layer A (backend) is fully independent of the UI and can be built and tested before any Streamlit code. Layer B (UI foundation) must be complete before any Layer C page. Within Layer C, pages must be built in phase order because each page is acceptance-tested by running the phase end-to-end.
+
+---
+
+## Anti-Patterns (v2.0.0 additions)
+
+### Anti-Pattern 6: Storing Pipeline Artifacts in session_state
+
+**What people do:** `st.session_state["script"] = ScriptOutput(...)` after a stage runs.
+
+**Why it's wrong:** session_state is lost on browser close, tab refresh, or Streamlit crash. Artifacts stored here cannot be resumed. The existing checkpoint mechanism already solves this — duplicating it in session_state creates a divergence risk.
+
+**Do this instead:** Always read from `workdir.read_checkpoint(name, Model)`. Store only UI-transient values (current phase, form inputs) in session_state.
+
+### Anti-Pattern 7: Calling Streamlit APIs from the Background Thread
+
+**What people do:** `st.session_state["status"] = "done"` inside the thread function.
+
+**Why it's wrong:** Streamlit session_state is not thread-safe. Writing to it from a background thread causes race conditions and undefined behavior (undocumented internal locking). The `add_script_run_ctx` workaround is an internal API and may break across Streamlit versions.
+
+**Do this instead:** The background thread writes only to `workdir/` (via WorkdirManager). The main script thread reads `workdir/` via the polling fragment. No Streamlit API is ever called inside a thread.
+
+### Anti-Pattern 8: Running the Full Pipeline for Single-Stage Variations
+
+**What people do:** On "Regenerate script variation", call `subprocess.run(["avideo", "generate", ...])` which re-runs all stages from the beginning.
+
+**Why it's wrong:** The full pipeline re-runs context ingestion, storyboard, timing, AND scriptwriter when only scriptwriter needs to re-run. This wastes API credits and is slow.
+
+**Do this instead:** Use `PipelineBridge.run_stage(ScriptwriterStage(), ...)` directly. The orchestrator's done-marker logic means only stages without a done marker re-run. For interactive variations, clear only the target stage's done marker and checkpoint, then call the stage directly.
+
+### Anti-Pattern 9: Using st.cache_data for Pipeline Checkpoints
+
+**What people do:** `@st.cache_data def load_script(): return workdir.read_checkpoint(...)` to avoid re-reading on every rerun.
+
+**Why it's wrong:** `st.cache_data` caches across sessions and across runs. After a variation re-generates the script, the cache still returns the old version. Cache invalidation requires explicit `st.cache_data.clear()`, which is easy to forget and hard to debug.
+
+**Do this instead:** Read checkpoints directly each rerun. JSON reads are <1ms and do not benefit from caching. The background thread + done-marker polling already prevents redundant stage execution.
+
+### Anti-Pattern 10: Blocking the Main Thread with Long Stage Calls
+
+**What people do:** Call `SlidesAutoStage().run(workdir, config)` synchronously in the page's render function.
+
+**Why it's wrong:** Streamlit renders by re-running the page script. A 30-second Playwright render in the main thread freezes the entire UI, prevents the user from interacting, and causes the browser to show a spinning indicator with no feedback.
+
+**Do this instead:** Always use `PipelineBridge.run_stage()` for stages that take more than 2 seconds. Show `st.spinner()` or a `@st.fragment(run_every="2s")` progress poll while the thread runs.
 
 ---
 
 ## Scaling Considerations
 
-This is a single-user, single-run CLI tool. Scaling questions are irrelevant. The relevant concurrency considerations are:
+This is a local, single-user tool (localhost, one Streamlit session). Concurrency and scaling are irrelevant. The relevant concerns are:
 
 | Concern | Approach |
 |---------|----------|
-| Playwright blocking orchestrator | Use sync API; one browser instance reused across all slides. No threading needed. |
-| WhisperX memory (GPU/CPU) | Load model once (lazy-init on first `align` call); release after stage completes. |
-| ElevenLabs per-slide API calls | Call sequentially per slide; SDK is synchronous. Batch is not supported by the timestamps endpoint. |
-| FFmpeg large video | FFmpeg runs in subprocess — no blocking concern; `check=True` gives clean errors. |
-| Claude API rate limits | Exponential backoff in `integrations/anthropic.py`; `tenacity` library is appropriate here. |
-
----
-
-## Construction Order (Build Dependencies)
-
-Build in this sequence — each layer unblocks the next:
-
-```
-Layer 0 — Foundation (no dependencies)
-  1. models/           — All Pydantic I/O contracts (no external deps)
-  2. utils/workdir.py  — WorkdirManager (Path operations only)
-  3. stages/base.py    — StageProtocol, done-marker logic
-
-Layer 1 — Pure logic stages (depend only on models + workdir)
-  4. stages/timing.py  — Pure math, no external calls
-  5. stages/subtitles.py — Pure string formatting (SRT/VTT generation)
-
-Layer 2 — Orchestrator skeleton (enables integration testing of stages)
-  6. cli.py + orchestrator.py  — RunConfig, stage loop, checkpoint checks, approval gates
-     (start with stubs for all stages → wire real stages as they are built)
-
-Layer 3 — LLM stages (depend on Anthropic SDK)
-  7. integrations/anthropic.py
-  8. stages/storyboard.py
-  9. stages/scriptwriter.py
-
-Layer 4 — Slides (depends on storyboard + script + Playwright)
-  10. integrations/playwright.py   — sync_playwright html→png wrapper
-  11. stages/slides_auto.py        — Jinja2 + theme.yaml + playwright
-  12. stages/slides_hybrid.py      — Design proposal generation + approval pause
-  13. stages/slides_manual.py      — PNG validation passthrough
-
-Layer 5 — Verification (depends on slides + Claude vision)
-  14. stages/verify_slides.py      — rasterize slides, Claude vision batch call
-
-Layer 6 — Audio (depends on script + ElevenLabs)
-  15. integrations/elevenlabs.py   — TTS + timestamps wrapper
-  16. stages/voice_elevenlabs.py
-  17. stages/voice_record.py       — Export + ingest pattern
-
-Layer 7 — Alignment (depends on audio, record mode only)
-  18. integrations/whisperx.py     — load_model + align wrapper
-  19. stages/align.py
-
-Layer 8 — Assembly (depends on slides + audio + subtitles + FFmpeg)
-  20. integrations/ffmpeg.py       — subprocess builder
-  21. stages/assemble.py
-  22. stages/qa.py
-
-Layer 9 — Polish
-  23. utils/rich_ui.py             — Progress, approval prompts, QA report display
-  24. utils/cost_estimator.py      — --dry-run token/cost estimation
-  25. context stage (optional ingestor: PyMuPDF, python-pptx)
-```
-
-**Critical dependency note:** The orchestrator skeleton (Layer 2) should be built before any external-dependency stage. This lets you wire stages in with stubs and run the pipeline end-to-end (with mocked outputs) from day one, which validates the checkpoint/resumption logic before any real API calls.
-
----
-
-## Anti-Patterns
-
-### Anti-Pattern 1: Passing Python Objects Between Stages
-
-**What people do:** Orchestrator holds stage outputs in memory and passes them as arguments to the next stage.
-
-**Why it's wrong:** Breaks resumption — if the process crashes, the in-memory state is gone. Also makes each stage depend on the orchestrator's calling convention rather than the filesystem contract.
-
-**Do this instead:** Each stage reads its inputs from `workdir/*.json` and writes its output to `workdir/*.json`. The orchestrator only calls `stage.run(workdir)`.
-
-### Anti-Pattern 2: `async_playwright` in a Sync Orchestrator
-
-**What people do:** Use `async_playwright` for slides generation because it "feels more modern," which requires wrapping in `asyncio.run()`.
-
-**Why it's wrong:** `asyncio.run()` creates a new event loop each call. If WhisperX or ElevenLabs integrations also try to use async internally, event loop conflicts arise. Known Playwright issue: `async_playwright` context manager hangs on exit when process pools are involved.
-
-**Do this instead:** Use `sync_playwright()` with a `with` block. Playwright's sync API is fully supported and avoids all event loop management. Keep one browser instance open for the duration of the slides stage.
-
-### Anti-Pattern 3: Shell=True for FFmpeg
-
-**What people do:** `subprocess.run(f"ffmpeg -i {input} -o {output}", shell=True)`.
-
-**Why it's wrong:** Path injection risk if any filename comes from user input. Also makes argument quoting error-prone and hard to test.
-
-**Do this instead:** Always pass a list: `subprocess.run(["ffmpeg", "-i", str(input_path), str(output_path)], check=True, capture_output=True)`. Build complex FFmpeg filter graphs programmatically in `integrations/ffmpeg.py`.
-
-### Anti-Pattern 4: Done Marker as a Lock (Not a Receipt)
-
-**What people do:** Check the done marker before AND after stage execution, treating it as a mutex.
-
-**Why it's wrong:** Done markers are idempotency receipts, not locks. This pipeline is single-process; no locking is needed. Treating them as locks adds complexity and can mask partial failure (e.g., JSON written but PNG missing).
-
-**Do this instead:** Mark done only after ALL outputs (JSON + artifacts) are confirmed written. If a stage fails mid-way, the done marker is never written, so the next run retries the full stage. For artifact-heavy stages (slides, audio), use a temp directory and atomic rename.
-
-### Anti-Pattern 5: Embedding Approval Logic in Stages
-
-**What people do:** Stage code calls `rich.prompt.Confirm.ask("Continue?")` inside `stage.run()`.
-
-**Why it's wrong:** Stages become untestable in automated contexts. Level behavior is scattered across files.
-
-**Do this instead:** Stages are pure logic — they never prompt. The orchestrator is the only place that calls `rich_ui.pause_for_approval()`, keyed on the level and the stage name.
+| Streamlit rerun frequency (every widget interaction) | Keep page render code cheap: only read checkpoints + display; no computation in main render path |
+| Thread lifecycle management | Bridge tracks threads in module-level dict; daemon=True so threads die with the process |
+| Workdir state across sessions | `workdir/` persists on disk; UI re-hydrates from checkpoints on page load |
+| Multiple runs (different projects) | Each `Run` gets its own timestamped workdir; session_state["workdir_path"] points to the current one |
 
 ---
 
 ## Sources
 
-- Pydantic model serialization (HIGH confidence): https://docs.pydantic.dev/latest/concepts/serialization/
-- ElevenLabs `convert_with_timestamps` API (HIGH confidence): https://elevenlabs.io/docs/api-reference/text-to-speech/convert-with-timestamps
-- Playwright Python sync vs async (HIGH confidence): https://playwright.dev/python/docs/library
-- Playwright async context manager known issue: https://github.com/microsoft/playwright-python/issues/1074
-- WhisperX Python API (HIGH confidence — official README): https://github.com/m-bain/whisperX
-- Python checkpoint patterns (MEDIUM confidence): https://github.com/a-rahimi/python-checkpointing
-- Idempotent pipeline patterns (MEDIUM confidence): https://www.prefect.io/blog/the-importance-of-idempotent-data-pipelines-for-resilience
-- Python Protocol vs ABC (HIGH confidence): https://peps.python.org/pep-0544/
-- FFmpeg subprocess Python best practices (MEDIUM confidence): https://www.gumlet.com/learn/ffmpeg-python/
+- Streamlit session_state (HIGH confidence): https://docs.streamlit.io/develop/api-reference/caching-and-state
+- Streamlit threading patterns (HIGH confidence): https://docs.streamlit.io/develop/concepts/app-design/multithreading
+- `@st.fragment(run_every=...)` for background polling (HIGH confidence): https://docs.streamlit.io/develop/concepts/architecture/fragments
+- `st.video()` for MP4 preview (HIGH confidence): https://docs.streamlit.io/develop/api-reference/media/video
+- `st.image()` for PNG thumbnails (HIGH confidence): https://docs.streamlit.io/develop/api-reference/media/image
+- OpenAI Audio API (MEDIUM confidence — training data; no character timestamps): https://platform.openai.com/docs/api-reference/audio/createSpeech
+- FFmpeg arnndn filter (MEDIUM confidence): https://ffmpeg.org/ffmpeg-filters.html#arnndn
+- FFmpeg amix + sidechaincompress for ducking (MEDIUM confidence): https://trac.ffmpeg.org/wiki/AudioChannelManipulation
+- Existing architecture (HIGH confidence — source code): src/avideo/orchestrator.py, stages/base.py, utils/workdir.py
 
 ---
 
-*Architecture research for: auto-video-narrado — sequential CLI pipeline with checkpoints*
-*Researched: 2026-05-25*
+*Architecture research for: auto-video-narrado v2.0.0 — Streamlit UI + pipeline integration*
+*Researched: 2026-05-29*
