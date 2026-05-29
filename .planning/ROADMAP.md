@@ -32,7 +32,7 @@ Full phase detail: [milestones/v1.60.0-ROADMAP.md](milestones/v1.60.0-ROADMAP.md
 - [x] **Phase 9: UI Foundation** — Streamlit shell + PipelineBridge + state model + invalidate_downstream + workdir reconstruction (completed 2026-05-29)
 - [x] **Phase 10: Contenido Page** — Fase 1 wizard: intake de tema + duración + auto-generación de bullets + gate de aprobación (completed 2026-05-29)
 - [x] **Phase 11: Guion + Slides Pages** — Fases 2 y 3 wizard: guion editable + variaciones + slides interactivas + verificador QC (completed 2026-05-29)
-- [ ] **Phase 12: Voz Page** — Fase 4 wizard: selección de proveedor de narración + previews de audio + gate de aprobación
+- [x] **Phase 12: Voz Page** — Fase 4 wizard: selección de proveedor de narración + previews de audio + gate de aprobación (completed 2026-05-29)
 - [ ] **Phase 13: Extras + Ensamblaje + Polish** — Fases 5–6 wizard: extras + montaje final + preview/descarga + packaging y tests
 
 ## Phase Details
@@ -123,7 +123,7 @@ Plans:
 Plans:
 - [x] 12-01-PLAN.md — Wave 1: RED test scaffold for voice pipeline_ops helpers (rerun_voice, write_uploaded_audio, audio_gate_ready)
 - [x] 12-02-PLAN.md — Wave 2: Extend ui/pipeline_ops.py with 3 voice helpers (turns RED tests GREEN)
-- [ ] 12-03-PLAN.md — Wave 3: phase_4_voz.py — real Fase 4 page (provider radio + synthesis bridge + upload + enhance preview + gate)
+- [x] 12-03-PLAN.md — Wave 3: phase_4_voz.py — real Fase 4 page (provider radio + synthesis bridge + upload + enhance preview + gate)
 **UI hint**: yes
 
 ### Phase 13: Extras + Ensamblaje + Polish
@@ -154,5 +154,5 @@ Plans:
 | 9. UI Foundation | v2.0.0 | 4/4 | Complete   | 2026-05-29 |
 | 10. Contenido Page | v2.0.0 | 3/3 | Complete   | 2026-05-29 |
 | 11. Guion + Slides Pages | v2.0.0 | 4/4 | Complete   | 2026-05-29 |
-| 12. Voz Page | v2.0.0 | 2/3 | In Progress|  |
+| 12. Voz Page | v2.0.0 | 3/3 | Complete   | 2026-05-29 |
 | 13. Extras + Ensamblaje + Polish | v2.0.0 | 0/- | Not started | - |
