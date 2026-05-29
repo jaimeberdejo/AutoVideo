@@ -12,6 +12,22 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
+#: Canonical pipeline stage execution order.
+#: Used by ``WorkdirManager.invalidate_downstream`` to determine which
+#: done-markers to delete when the user navigates back in the wizard.
+STAGE_ORDER: list[str] = [
+    "context",
+    "storyboard",
+    "timing",
+    "scriptwriter",
+    "slides",
+    "verify",
+    "voice",
+    "align",
+    "subs",
+    "assemble",
+]
+
 
 class WorkdirManager:
     """Manages all filesystem state for a pipeline run.
@@ -85,6 +101,34 @@ class WorkdirManager:
             stage: Stage name to mark as complete.
         """
         self.done_marker(stage).touch()
+
+    def invalidate_downstream(self, from_stage: str) -> list[str]:
+        """Delete done-markers for all stages strictly after *from_stage*.
+
+        This is the UI safety mechanism: when the user navigates back and
+        edits an upstream stage, all downstream done-markers must be deleted
+        so the pipeline does not serve stale results.
+
+        Args:
+            from_stage: Stage name boundary (inclusive — this stage's marker
+                is NOT deleted; only stages after it in STAGE_ORDER are).
+
+        Returns:
+            List of stage names whose done-markers were deleted.
+
+        Raises:
+            ValueError: If *from_stage* is not in STAGE_ORDER.
+        """
+        if from_stage not in STAGE_ORDER:
+            raise ValueError(f"Unknown stage: {from_stage!r}")
+        boundary = STAGE_ORDER.index(from_stage)
+        deleted: list[str] = []
+        for stage in STAGE_ORDER[boundary + 1 :]:
+            marker = self.done_marker(stage)
+            if marker.exists():
+                marker.unlink()
+                deleted.append(stage)
+        return deleted
 
     # ------------------------------------------------------------------
     # Checkpoint read/write
