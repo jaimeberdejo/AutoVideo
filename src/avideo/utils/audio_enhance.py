@@ -32,10 +32,20 @@ def enhance_audio(in_path: Path, out_path: Path) -> None:
         in_path: Original (unprocessed) audio file. NOT modified.
         out_path: New file for the enhanced output. Must differ from in_path.
 
+    Raises:
+        ValueError: If in_path and out_path resolve to the same file — FFmpeg
+            with -y would attempt to read and write simultaneously, corrupting
+            or truncating the file.
+
     Note:
         Alignment (WhisperX/whisper-1) must always use in_path (the original),
         not out_path. The enhanced file is only for the final assembled video.
     """
+    if in_path.resolve() == out_path.resolve():
+        raise ValueError(
+            f"enhance_audio: in_path and out_path must differ; "
+            f"both resolve to {in_path.resolve()}"
+        )
     run_ffmpeg([
         "ffmpeg", "-hide_banner", "-y",
         "-i", str(in_path),
