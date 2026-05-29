@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 from avideo.ui.bridge import run_stage  # noqa: E402 — module-level mock seam for tests
 
 if TYPE_CHECKING:
+    from avideo.models.assembly import QAReport
     from avideo.models.config import RunConfig
     from avideo.models.script import ScriptOutput
     from avideo.models.verification import SlideVerdict
@@ -242,6 +243,99 @@ def audio_gate_ready(workdir: "WorkdirManager", n_slides: int) -> bool:
         return False
 
     return all(len(slide.words) > 0 for slide in timings.slides)
+
+
+# ---------------------------------------------------------------------------
+# Extras helpers (Phase 13)
+# ---------------------------------------------------------------------------
+
+
+def write_uploaded_music(
+    workdir: "WorkdirManager",
+    filename: str,
+    data: bytes,
+) -> Path:
+    """Write uploaded music bytes to ``workdir/music/<filename>``.
+
+    Guards against path traversal: if *filename* contains ``/``, ``\\``,
+    or starts with ``..``, a ``ValueError`` is raised before any file is
+    written (T-13-02-01).  Mirrors write_uploaded_audio but targets
+    ``workdir/music/`` instead of ``workdir/audio/``.
+
+    Args:
+        workdir:  Active WorkdirManager for the current run.
+        filename: Bare filename provided by the user (e.g. ``"bg_music.mp3"``).
+        data:     Raw bytes of the uploaded music file.
+
+    Returns:
+        The ``Path`` of the written file (``workdir.root / "music" / filename``).
+
+    Raises:
+        ValueError: If *filename* contains a path separator or starts with
+                    ``".."``, indicating a path traversal attempt.
+    """
+    if "/" in filename or "\\" in filename or filename.startswith(".."):
+        raise ValueError(
+            f"Unsafe filename rejected (path traversal attempt): {filename!r}"
+        )
+
+    dest_dir = workdir.root / "music"
+    dest_dir.mkdir(exist_ok=True)
+    dest = dest_dir / filename
+    dest.write_bytes(data)
+    return dest
+
+
+def extras_to_run_config(
+    burn_subs: bool,
+    bg_music_path: "Path | None",
+    bg_music_volume: float,
+    bg_music_fade_out_s: float,
+    crossfade_seconds: float,
+) -> dict:
+    """Map Fase 5 widget values to RunConfig kwargs.
+
+    Returns a dict safe to merge into ``session_state['run_config']``.
+    Pure function — no I/O, no Streamlit dependency.
+
+    Args:
+        burn_subs:          Whether to burn subtitles into the final video.
+        bg_music_path:      Path to background music file, or None.
+        bg_music_volume:    Linear volume level 0.0–1.0 (0.12 ~ -18 dBFS).
+        bg_music_fade_out_s: Fade-out duration in seconds at end of video.
+        crossfade_seconds:  Crossfade duration between slides in seconds.
+
+    Returns:
+        Dict with keys matching RunConfig field names.
+    """
+    return {
+        "burn_subs": burn_subs,
+        "bg_music_path": bg_music_path,
+        "bg_music_volume": bg_music_volume,
+        "bg_music_fade_out_s": bg_music_fade_out_s,
+        "crossfade_seconds": crossfade_seconds,
+    }
+
+
+def read_qa_report(workdir: "WorkdirManager") -> "QAReport | None":
+    """Read qa_report.json from workdir; returns None when absent or invalid.
+
+    Wraps all I/O and parsing in a broad ``except Exception`` so that the
+    wizard page is never broken by a corrupt or missing report (T-13-02-02).
+
+    Args:
+        workdir: Active WorkdirManager for the current run.
+
+    Returns:
+        A parsed ``QAReport`` on success; ``None`` on any error.
+    """
+    try:
+        from avideo.models.assembly import QAReport  # noqa: PLC0415
+
+        qa_path = workdir.root / "qa_report.json"
+        return QAReport.model_validate_json(qa_path.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return None
 
 
 # ---------------------------------------------------------------------------
