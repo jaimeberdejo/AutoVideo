@@ -12,7 +12,7 @@
 
 ### UI — Wizard Streamlit y orquestación
 
-- [ ] **UI-01**: El usuario lanza la UI (p. ej. `avideo studio`) y se abre un wizard local de 6 fases en el navegador
+- [x] **UI-01**: El usuario lanza la UI (p. ej. `avideo studio`) y se abre un wizard local de 6 fases en el navegador
 - [ ] **UI-02**: Entre cada fase hay un gate de validación humana — el wizard no avanza hasta que el usuario confirma explícitamente
 - [x] **UI-03**: El usuario puede retroceder a una fase anterior; al editar o regenerar, los checkpoints aguas abajo se invalidan (no se muestran resultados desincronizados)
 - [x] **UI-04**: El estado del wizard se reconstruye desde los checkpoints de `workdir/` (sobrevive a refrescos/cierres del navegador); `session_state` solo guarda el workdir y la fase actual
@@ -91,7 +91,7 @@ Qué fases cubren qué requisitos.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| UI-01 | Phase 9 | Pending |
+| UI-01 | Phase 9 | Complete |
 | UI-02 | Phase 9 | Pending |
 | UI-03 | Phase 9 | Complete |
 | UI-04 | Phase 9 | Complete |
