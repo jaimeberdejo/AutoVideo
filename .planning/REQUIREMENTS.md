@@ -87,15 +87,40 @@ Excluido explícitamente. Documentado para evitar scope creep.
 
 ## Traceability
 
-Qué fases cubren qué requisitos. (Vacío — lo rellena el roadmap.)
+Qué fases cubren qué requisitos.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| _pendiente_ | — | — |
+| UI-01 | Phase 9 | Pending |
+| UI-02 | Phase 9 | Pending |
+| UI-03 | Phase 9 | Pending |
+| UI-04 | Phase 9 | Pending |
+| UI-05 | Phase 9 | Pending |
+| UI-06 | Phase 9 | Pending |
+| UI-07 | Phase 9 | Pending |
+| CNT-01 | Phase 10 | Pending |
+| CNT-02 | Phase 10 | Pending |
+| CNT-03 | Phase 10 | Pending |
+| SCR-01 | Phase 11 | Pending |
+| SCR-02 | Phase 11 | Pending |
+| SCR-03 | Phase 11 | Pending |
+| SCR-04 | Phase 11 | Pending |
+| SLD-01 | Phase 11 | Pending |
+| SLD-02 | Phase 11 | Pending |
+| SLD-03 | Phase 11 | Pending |
+| VOZ-01 | Phase 12 | Pending |
+| VOZ-02 | Phase 8 | Pending |
+| VOZ-03 | Phase 8 | Pending |
+| EXT-01 | Phase 13 | Pending |
+| EXT-02 | Phase 8 | Pending |
+| EXT-03 | Phase 8 | Pending |
+| ASM-01 | Phase 13 | Pending |
+| ASM-02 | Phase 13 | Pending |
 
 **Coverage:**
-- v2.0.0 requirements: 22 total
-- Mapped to phases: 0 (pending roadmap)
+- v2.0.0 requirements: 25 total
+- Mapped to phases: 25/25 (100%)
 
 ---
 *Requirements defined: 2026-05-29 for milestone v2.0.0 Studio Guiado*
+*Traceability updated: 2026-05-29 — roadmap v2.0.0 phases 8–13*
