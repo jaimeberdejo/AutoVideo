@@ -118,7 +118,12 @@ Plans:
   2. Para ElevenLabs y OpenAI Audio, la síntesis corre via bridge y al completarse aparece un widget `st.audio` reproducible por cada slide
   3. Para grabaciones propias, el usuario puede subir un archivo de audio por slide; al subir, el archivo se escribe a `workdir/` inmediatamente (no se pierde en el siguiente rerun); el botón de mejora automática produce un preview comparativo antes de confirmar
   4. El gate de aprobación de Fase 4 solo se desbloquea cuando todos los slides tienen audio y `timings.json` contiene word-level timestamps válidos
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 12-01-PLAN.md — Wave 1: RED test scaffold for voice pipeline_ops helpers (rerun_voice, write_uploaded_audio, audio_gate_ready)
+- [ ] 12-02-PLAN.md — Wave 2: Extend ui/pipeline_ops.py with 3 voice helpers (turns RED tests GREEN)
+- [ ] 12-03-PLAN.md — Wave 3: phase_4_voz.py — real Fase 4 page (provider radio + synthesis bridge + upload + enhance preview + gate)
 **UI hint**: yes
 
 ### Phase 13: Extras + Ensamblaje + Polish
@@ -149,5 +154,5 @@ Plans:
 | 9. UI Foundation | v2.0.0 | 4/4 | Complete   | 2026-05-29 |
 | 10. Contenido Page | v2.0.0 | 3/3 | Complete   | 2026-05-29 |
 | 11. Guion + Slides Pages | v2.0.0 | 4/4 | Complete   | 2026-05-29 |
-| 12. Voz Page | v2.0.0 | 0/- | Not started | - |
+| 12. Voz Page | v2.0.0 | 0/3 | In progress | - |
 | 13. Extras + Ensamblaje + Polish | v2.0.0 | 0/- | Not started | - |
