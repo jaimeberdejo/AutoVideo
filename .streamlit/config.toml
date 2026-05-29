@@ -1,0 +1,10 @@
+[server]
+address = "127.0.0.1"
+maxUploadSize = 200
+
+[theme]
+base = "light"
+
+[runner]
+# Suppress the "source file changed" auto-rerun warning during development
+fastReruns = true
