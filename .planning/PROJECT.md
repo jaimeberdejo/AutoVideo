@@ -38,10 +38,9 @@ A partir de unos bullets + una duración, obtener **un vídeo narrado coherente 
 
 ### Active
 
-<!-- Alcance del siguiente milestone (Media en `auto`). Hipótesis hasta validar. -->
+<!-- Alcance del siguiente milestone. Vacío: no hay milestone definido tras v1.60.0. -->
 
-- [ ] **Screenshot en `auto`** (Phase 8): `visual_type: screenshot` con `image_path`/`caption`; `bullets.yaml` acepta `{text, image}` (SLIDE-06, SLIDE-07)
-- [ ] **Video clip en `auto`** (Phase 9): `visual_type: video` con `video_path`; el clip dicta la duración del slide, audio original silenciado + narración superpuesta, hold-last-frame, integración en el filtergraph FFmpeg (VIDEO-01..04)
+(Ninguno — v1.60.0 enviado. Usa `/gsd-new-milestone` para definir el próximo alcance.)
 
 ### Out of Scope
 
@@ -59,7 +58,7 @@ A partir de unos bullets + una duración, obtener **un vídeo narrado coherente 
 ## Context
 
 - **Estado actual (post-v1.60.0):** Pipeline MVP completo y enviado — `avideo generate` recorre context → storyboard → timing → scriptwriter → slides → verify → voice → align → subs → assemble end-to-end. ~7.148 LOC Python, 303 tests verdes (todas las APIs/binarios externos mockeados), instalable con `uv` y reproducible en Docker. Auditoría de milestone: PASSED.
-- **Foco siguiente milestone:** insertar medios del usuario (capturas y clips .mp4) directamente en modo `auto`, sin obligar a cambiar a `hybrid`/`manual` (Phases 8–9).
+- **Foco siguiente milestone:** sin definir. v1.60.0 está enviado; el próximo alcance se decidirá con `/gsd-new-milestone`. (La idea previa de medios del usuario en `auto` — capturas/vídeo, antiguas Phases 8–9 — se retiró del roadmap el 2026-05-29.)
 - **Deuda técnica conocida (no bloqueante):** imagen Docker verificada por inspección estática (recomendado `docker build` real antes del primer deploy); ingesta de `.pptx` de usuario es best-effort (rasterización offline no soportada → exportar PDF/PNG); WPM español de ElevenLabs (150) pendiente de calibración empírica; compatibilidad WhisperX/torch+pyannote en Docker por validar en la imagen opcional de `record`.
 - **Prioridades de diseño (en orden):** (1) máxima calidad de salida, (2) rapidez de implementación, (3) control total del código.
 - **Ejecución local** en Python, empaquetable en Docker.
@@ -118,4 +117,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-29 after v1.60.0 milestone*
+*Last updated: 2026-05-29 after v1.60.0 milestone (Phases 8–9 removed from scope)*

@@ -3,11 +3,11 @@ gsd_state_version: 1.0
 milestone: v1.60.0
 milestone_name: MVP Pipeline
 status: milestone_shipped
-stopped_at: v1.60.0 archived and tagged — ready to plan next milestone (Phases 8–9)
+stopped_at: v1.60.0 shipped; Phases 8–9 removed from scope; no next milestone defined
 last_updated: "2026-05-29T12:08:16.203Z"
-last_activity: 2026-05-29 -- v1.60.0 milestone completed and archived
+last_activity: 2026-05-29 -- Phases 8–9 removed from roadmap/requirements
 progress:
-  total_phases: 9
+  total_phases: 7
   completed_phases: 7
   total_plans: 18
   completed_plans: 18
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-29)
 
 **Core value:** A partir de unos bullets + una duración, obtener un vídeo narrado coherente y de alta calidad (slides + voz + subtítulos sincronizados) sin intervención manual obligatoria, con checkpoints opcionales de supervisión.
-**Current focus:** Próximo milestone — Media en `auto` (Phase 8 screenshots, Phase 9 video clips)
+**Current focus:** Ninguno — v1.60.0 enviado, sin milestone siguiente definido
 
 ## Current Position
 
-Phase: 8 (next — not started)
-Plan: Not started
-Status: v1.60.0 shipped — planning next milestone
+Phase: None (no active milestone)
+Plan: —
+Status: v1.60.0 shipped — no next milestone defined (Phases 8–9 removed from scope)
 Last activity: 2026-05-29
 
 Progress: [██████████] 100% (v1.60.0)
@@ -84,7 +84,6 @@ Resolved during v1.60.0 (kept for history):
 
 Open (carried forward — see PROJECT.md tech debt):
 - WPM efectivo de ElevenLabs en español es estimado (150); requiere calibración empírica.
-- Phase 9 (video clips): el filtergraph de crossfades imagen↔vídeo/vídeo↔vídeo necesita un spike con clip de test antes de integrar en AssembleStage.
 
 ## Deferred Items
 
@@ -97,5 +96,5 @@ Open (carried forward — see PROJECT.md tech debt):
 ## Session Continuity
 
 Last session: 2026-05-29
-Stopped at: v1.60.0 milestone archived and tagged — ready to plan next milestone (Phases 8–9) via /gsd-new-milestone
+Stopped at: v1.60.0 shipped; Phases 8–9 removed from scope. No next milestone defined — use /gsd-new-milestone when ready.
 Resume file: None
