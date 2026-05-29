@@ -28,7 +28,7 @@ Full phase detail: [milestones/v1.60.0-ROADMAP.md](milestones/v1.60.0-ROADMAP.md
 
 ### 🚧 v2.0.0 Studio Guiado (Phases 8–13)
 
-- [ ] **Phase 8: Backend Integrations** — OpenAI Audio TTS + STT round-trip + audio enhancement + background music FFmpeg pipeline
+- [x] **Phase 8: Backend Integrations** — OpenAI Audio TTS + STT round-trip + audio enhancement + background music FFmpeg pipeline (completed 2026-05-29)
 - [ ] **Phase 9: UI Foundation** — Streamlit shell + PipelineBridge + state model + invalidate_downstream + workdir reconstruction
 - [ ] **Phase 10: Contenido Page** — Fase 1 wizard: intake de tema + duración + auto-generación de bullets + gate de aprobación
 - [ ] **Phase 11: Guion + Slides Pages** — Fases 2 y 3 wizard: guion editable + variaciones + slides interactivas + verificador QC
@@ -53,7 +53,7 @@ Plans:
 - [x] 08-02-PLAN.md — Wave 1: Model layer — VoiceMode.openai + RunConfig new fields + pyproject.toml dep promotion
 - [x] 08-03-PLAN.md — Wave 2a: OpenAI Audio integration — integrations/openai.py + stages/voice_openai.py + voice.py dispatcher
 - [x] 08-04-PLAN.md — Wave 2b: Audio enhancement utility — utils/audio_enhance.py (afftdn + loudnorm, non-destructive)
-- [ ] 08-05-PLAN.md — Wave 3: Background music assembly — build_music_mix_args() + AssembleStage Step 8.5
+- [x] 08-05-PLAN.md — Wave 3: Background music assembly — build_music_mix_args() + AssembleStage Step 8.5
 
 ### Phase 9: UI Foundation
 **Goal**: La app Streamlit arranca con `avideo studio`, muestra un wizard de 6 fases navegable, reconstruye el estado desde `workdir/` en refresco de página, y ejecuta etapas largas sin bloquear la UI
@@ -128,7 +128,7 @@ Plans:
 | 5. Montaje + QA | v1.60.0 | 2/2 | Complete | 2026-05-26 |
 | 6. Slides Hybrid/Manual + Verificador | v1.60.0 | 2/2 | Complete | 2026-05-26 |
 | 7. Empaquetado + Tests + Docs | v1.60.0 | 3/3 | Complete | 2026-05-26 |
-| 8. Backend Integrations | v2.0.0 | 4/5 | In Progress|  |
+| 8. Backend Integrations | v2.0.0 | 5/5 | Complete   | 2026-05-29 |
 | 9. UI Foundation | v2.0.0 | 0/- | Not started | - |
 | 10. Contenido Page | v2.0.0 | 0/- | Not started | - |
 | 11. Guion + Slides Pages | v2.0.0 | 0/- | Not started | - |

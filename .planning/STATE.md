@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0.0
 milestone_name: Studio Guiado
-status: executing
+status: verifying
 stopped_at: Completed 08-03-PLAN.md
-last_updated: "2026-05-29T13:55:37.773Z"
+last_updated: "2026-05-29T14:10:06.464Z"
 last_activity: 2026-05-29
 progress:
   total_phases: 6
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 5
-  completed_plans: 4
-  percent: 80
+  completed_plans: 5
+  percent: 100
 ---
 
 # Project State
@@ -27,11 +27,11 @@ See: .planning/PROJECT.md (updated 2026-05-29)
 
 Phase: 8 (Backend Integrations) — EXECUTING
 Plan: 5 of 5
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-05-29
 
 ```
-Progress: [████████░░] 80%
+Progress: [██████████] 100%
 ```
 
 ## Performance Metrics
@@ -62,6 +62,7 @@ Progress: [████████░░] 80%
 | Phase 08-backend-integrations P01 | 5 | 2 tasks | 3 files |
 | Phase 08 P02 | 126 | - tasks | - files |
 | Phase 08-backend-integrations P03 | 233 | 2 tasks | 3 files |
+| Phase 08 P08-05 | 4 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -85,6 +86,7 @@ Recent decisions affecting current work (v2.0.0):
 - [Phase ?]: openai>=2.38.0 in core deps; python-dotenv promoted from dev to core
 - [Phase ?]: transcribe_slide_openai passes Path directly to SDK (no open()) — mock seam works without real file on disk; OpenAI SDK accepts Path objects
 - [Phase ?]: whisper-1 hard-coded in transcribe_slide_openai — gpt-4o-transcribe lacks word timestamps (T-08-03-04 / Pitfall 17)
+- [Phase ?]: Single-pass loudnorm when music present
 
 ### Pending Todos
 
@@ -113,6 +115,6 @@ Carried forward from v1.60.0 (non-blocking):
 
 ## Session Continuity
 
-Last session: 2026-05-29T13:55:37.770Z
+Last session: 2026-05-29T14:10:03.007Z
 Stopped at: Completed 08-03-PLAN.md
 Resume file: None
