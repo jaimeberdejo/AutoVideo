@@ -136,7 +136,13 @@ Plans:
   3. Al completarse el montaje, aparece un player de vídeo reproducible en la UI y un botón de descarga del `output.mp4`; el informe QA (desviación de duración + LUFS) queda visible
   4. `avideo studio` es un entry point instalable en `pyproject.toml`; la app arranca con `avideo studio` o `streamlit run`; el Dockerfile expone el puerto 8501 y arranca la UI en modo headless
   5. Los tests del bridge (thread launch, done-marker detection, `invalidate_downstream`) y smoke tests de las páginas de fase pasan junto a los 303 tests previos
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 13-01-PLAN.md — Wave 0: RED test scaffold (write_uploaded_music, extras_to_run_config, read_qa_report)
+- [ ] 13-02-PLAN.md — Wave 1: Extend pipeline_ops + replace phase_5_extras.py (EXT-01)
+- [ ] 13-03-PLAN.md — Wave 2: Replace phase_6_ensamble.py (ASM-01, ASM-02)
+- [ ] 13-04-PLAN.md — Wave 3: Dockerfile EXPOSE 8501 + page smoke tests + human checkpoint
 **UI hint**: yes
 
 ## Progress
@@ -155,4 +161,4 @@ Plans:
 | 10. Contenido Page | v2.0.0 | 3/3 | Complete   | 2026-05-29 |
 | 11. Guion + Slides Pages | v2.0.0 | 4/4 | Complete   | 2026-05-29 |
 | 12. Voz Page | v2.0.0 | 3/3 | Complete   | 2026-05-29 |
-| 13. Extras + Ensamblaje + Polish | v2.0.0 | 0/- | Not started | - |
+| 13. Extras + Ensamblaje + Polish | v2.0.0 | 0/4 | Planned | - |
