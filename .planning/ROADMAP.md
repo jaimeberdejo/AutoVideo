@@ -82,7 +82,12 @@ Plans:
   1. El usuario puede escribir un tema y una duración objetivo y la UI los acepta con validación (duración mínima/máxima razonable)
   2. El usuario puede elegir entre escribir sus propios bullets o pedirle a la app que los genere desde el tema; ambas rutas terminan en el mismo editor
   3. Los bullets generados por Claude aparecen en un editor interactivo donde el usuario puede modificarlos, añadir o eliminar filas, y aprobar; al aprobar se persiste `workdir/bullets.yaml` y el wizard avanza a Fase 2
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 10-01-PLAN.md — Wave 0 (TDD): RED test scaffolds — generate_bullets mock, bullets.yaml round-trip, duration validation
+- [ ] 10-02-PLAN.md — Wave 1: stages/bullets_gen.py — generate_bullets() + validate_duration() + BulletsListOutput
+- [ ] 10-03-PLAN.md — Wave 2: phase_1_contenido.py — real Fase 1 page replacing Phase 9 placeholder
 **UI hint**: yes
 
 ### Phase 11: Guion + Slides Pages
@@ -136,7 +141,7 @@ Plans:
 | 7. Empaquetado + Tests + Docs | v1.60.0 | 3/3 | Complete | 2026-05-26 |
 | 8. Backend Integrations | v2.0.0 | 5/5 | Complete   | 2026-05-29 |
 | 9. UI Foundation | v2.0.0 | 4/4 | Complete   | 2026-05-29 |
-| 10. Contenido Page | v2.0.0 | 0/- | Not started | - |
+| 10. Contenido Page | v2.0.0 | 0/3 | Not started | - |
 | 11. Guion + Slides Pages | v2.0.0 | 0/- | Not started | - |
 | 12. Voz Page | v2.0.0 | 0/- | Not started | - |
 | 13. Extras + Ensamblaje + Polish | v2.0.0 | 0/- | Not started | - |
