@@ -19,7 +19,7 @@ Sections:
     PURE MATH     — crossfade_offsets, expected_total, clamp_crossfade
     PURE BUILDERS — _input_normalize, build_filtergraph, build_assemble_args,
                     probe_duration_args, loudnorm_pass1_args, loudnorm_pass2_args,
-                    parse_loudnorm_json
+                    parse_loudnorm_json, build_music_mix_args
     SUBPROCESS    — run_ffmpeg, probe_duration, ffmpeg_available
 """
 from __future__ import annotations
@@ -444,6 +444,79 @@ def parse_loudnorm_json(stderr: str) -> dict[str, float]:
         "offset": float(raw["target_offset"]),
         "input_i": measured_i,  # convenience alias for measured_lufs in QA sub-step
     }
+
+
+def build_music_mix_args(
+    video_path: str,
+    music_path: str,
+    output_path: str,
+    *,
+    music_volume: float = 0.12,
+    fade_in_s: float = 2.0,
+    fade_out_start: float,
+    fade_out_s: float = 3.0,
+    ducking_threshold: float = 0.02,
+    ducking_ratio: float = 10.0,
+    ducking_attack: float = 50.0,
+    ducking_release: float = 500.0,
+) -> list[str]:
+    """Build ffmpeg arg list to overlay background music on an assembled video (EXT-02/EXT-03).
+
+    Mix strategy (locked — 08-CONTEXT.md):
+        - amix=inputs=2:normalize=0 ALWAYS (Pitfall 19: normalize=1 drops narration -6 dB).
+        - Music level set with volume=<music_volume> before amix (not via amix internal gain).
+        - sidechaincompress: narration keys the sidechain; music ducked when voice is active.
+        - afade: in at t=0, out starting at fade_out_start (computed from probe_duration, not
+          config.duration — Pitfall 21).
+        - No loudnorm here — caller (AssembleStage Step 8.5) runs single-pass loudnorm on the
+          mixed output (EXT-03: exactly one loudnorm pass when music is present).
+
+    Security (T-08-05-01):
+        - video_path and music_path come from WorkdirManager / RunConfig.bg_music_path
+          (Pydantic-validated Optional[Path]).
+        - filter_complex is ONE list element — no shell interpretation (Pitfall 6).
+        - NEVER shell=True.
+
+    Args:
+        video_path:         Path to the assembled MP4 (narration only, pre-loudnorm).
+        music_path:         Path to the user-supplied music file.
+        output_path:        Destination MP4 path (use a .tmp.mp4 name for atomic rename).
+        music_volume:       Linear gain for music before mix (0.12 ≈ -18 dBFS rel. 0 dBFS).
+        fade_in_s:          Music fade-in duration in seconds.
+        fade_out_start:     Start time of fade-out in seconds (ffprobe real dur - fade_out_s).
+        fade_out_s:         Music fade-out duration in seconds.
+        ducking_threshold:  sidechaincompress threshold (0.02 = -34 dBFS).
+        ducking_ratio:      sidechaincompress ratio (10:1 = aggressive duck).
+        ducking_attack:     sidechaincompress attack in ms (50 ms = fast for speech).
+        ducking_release:    sidechaincompress release in ms (500 ms = musical tail).
+
+    Returns:
+        list[str] for subprocess.run(..., shell=False).
+    """
+    filter_complex = (
+        f"[0:a]asplit=2[narr_main][narr_sc];"
+        f"[1:a]volume={music_volume},"
+        f"afade=t=in:st=0:d={fade_in_s},"
+        f"afade=t=out:st={fade_out_start}:d={fade_out_s}[music_faded];"
+        f"[music_faded][narr_sc]sidechaincompress="
+        f"threshold={ducking_threshold}:ratio={ducking_ratio}:"
+        f"attack={ducking_attack}:release={ducking_release}[music_ducked];"
+        f"[narr_main][music_ducked]amix=inputs=2:normalize=0[aout]"
+    )
+    args: list[str] = ["ffmpeg", "-hide_banner", "-y"]
+    args.extend(["-i", video_path])
+    args.extend(["-i", music_path])
+    args.extend(["-filter_complex", filter_complex])
+    args.extend(["-map", "0:v"])
+    args.extend(["-map", "[aout]"])
+    args.extend([
+        "-c:v", "copy",           # no video re-encode (Pitfall 2: copy preserves stream)
+        "-c:a", "aac",
+        "-b:a", "192k",
+        "-movflags", "+faststart",  # Pitfall 2: must re-add under -c:v copy
+    ])
+    args.append(output_path)
+    return args
 
 
 # ---------------------------------------------------------------------------
