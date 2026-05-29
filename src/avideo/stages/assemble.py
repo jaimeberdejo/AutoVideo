@@ -53,6 +53,7 @@ from rich.table import Table
 
 from avideo.integrations.ffmpeg import (
     build_assemble_args,
+    build_music_mix_args,
     loudnorm_pass1_args,
     loudnorm_pass2_args,
     parse_loudnorm_json,
@@ -208,7 +209,71 @@ class AssembleStage(CheckpointMixin):
         # --- Step 8: Atomic publish (D-10 — tmp → rename) ---
         os.replace(str(tmp_mp4), str(output_mp4))
 
+        # --- Step 8.5: Music mix pass (EXT-02/EXT-03) ---
+        # If bg_music_path is configured and the file exists, overlay background music
+        # with ducking + fades.  This step replaces output_mp4 with the mixed version
+        # BEFORE _run_qa runs, so _run_qa applies loudnorm exactly once on the final mix.
+        #
+        # IMPORTANT (EXT-03 / Pitfall 20):
+        #   When music is present we use a SINGLE-PASS loudnorm on the mixed output
+        #   instead of the two-pass approach to avoid double-normalization / pumping.
+        #   We pre-write qa_report.json so that _run_qa's idempotence check returns
+        #   immediately, skipping the two-pass loudnorm pass entirely.
+        #
+        # IMPORTANT (Pitfall 21):
+        #   fade_out_start uses probe_duration() on the REAL assembled output,
+        #   not config.duration (which is the target, not the actual frame count).
+        bg_music_path = getattr(config, "bg_music_path", None)
+        if bg_music_path and Path(str(bg_music_path)).exists():
+            actual_dur = probe_duration(str(output_mp4))
+            fade_out_s: float = getattr(config, "bg_music_fade_out_s", 3.0)
+            fade_out_start = max(0.0, actual_dur - fade_out_s)
+            music_tmp = workdir.root / "output.music.tmp.mp4"  # .mp4 ext required by ffmpeg
+            music_args = build_music_mix_args(
+                str(output_mp4),
+                str(bg_music_path),
+                str(music_tmp),
+                music_volume=getattr(config, "bg_music_volume", 0.12),
+                fade_out_start=fade_out_start,
+                fade_out_s=fade_out_s,
+            )
+            run_ffmpeg(music_args)
+            os.replace(str(music_tmp), str(output_mp4))  # atomic: music mix replaces narration-only
+
+            # Single-pass loudnorm on the final mixed output (EXT-03).
+            # Two-pass loudnorm on already-normalized audio causes pumping (Pitfall 20).
+            # _run_qa's idempotence check (qa_json.exists()) short-circuits the two-pass
+            # path so loudnorm runs exactly ONCE total when music is present.
+            target_lufs: float = getattr(config, "target_lufs", -16.0)
+            norm_tmp = workdir.root / "output.mp4.norm.tmp"
+            single_loudnorm_args: list[str] = [
+                "ffmpeg", "-hide_banner", "-y",
+                "-i", str(output_mp4),
+                "-af", f"loudnorm=I={target_lufs}:TP=-1.5:LRA=11",
+                "-c:v", "copy",
+                "-c:a", "aac",
+                "-b:a", "192k",
+                "-movflags", "+faststart",  # Pitfall 2: re-add under -c:v copy
+                str(norm_tmp),
+            ]
+            run_ffmpeg(single_loudnorm_args)
+            os.replace(str(norm_tmp), str(output_mp4))
+
+            # Build and pre-write qa_report.json so _run_qa's idempotence path fires.
+            actual_seconds = probe_duration(str(output_mp4))
+            music_qa = build_qa_report(
+                target_seconds=float(config.duration),
+                actual_seconds=actual_seconds,
+                measured_lufs=target_lufs,       # single-pass: no pre-measure
+                normalized_lufs=target_lufs,
+            )
+            qa_tmp = workdir.root / "qa_report.json.tmp"
+            qa_tmp.write_text(music_qa.model_dump_json(indent=2), encoding="utf-8")
+            os.replace(str(qa_tmp), str(qa_json))
+
         # --- Step 9: QA sub-step (QA-01/02, per 05-RESEARCH Open Question 1) ---
+        # When music is present, qa_report.json was pre-written in Step 8.5, so
+        # _run_qa's idempotence check fires immediately (no additional loudnorm passes).
         report = self._run_qa(
             workdir=workdir,
             output_mp4=output_mp4,

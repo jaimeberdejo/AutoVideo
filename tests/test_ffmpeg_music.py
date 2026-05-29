@@ -201,18 +201,26 @@ def _fake_ffmpeg_factory(loudnorm_pass1_stderr, write_output=True):
             out_arg = args[-1]
             Path(out_arg).write_bytes(b"fake mp4")
             return types.SimpleNamespace(returncode=0, stdout="", stderr="")
-        # call 1: loudnorm pass-1 measure
+        # call 1:
+        #   - with-music path: music mix pass — write the tmp file (args[-1] ends with .mp4)
+        #   - no-music path: loudnorm pass-1 measure (output is "-", no file written)
+        elif n == 1 and write_output and args[-1] != "-":
+            out_arg = args[-1]
+            Path(out_arg).write_bytes(b"fake music mp4")
+            return types.SimpleNamespace(returncode=0, stdout="", stderr="")
         elif n == 1:
-            return pass1_proc
-        # call 2: loudnorm pass-2 apply — write normalized file
+            return pass1_proc  # loudnorm pass-1 (no-music path, null output "-")
+        # call 2:
+        #   - with-music path: single-pass loudnorm on mixed output — write norm_tmp
+        #   - no-music path: loudnorm pass-2 apply — write normalized file
         elif n == 2:
             out_arg = args[-1]
             Path(out_arg).write_bytes(b"fake normalized mp4")
             return pass2_proc
-        # call 3: music mix pass — write music-mixed file
+        # call 3: no-music path loudnorm pass-2 continued (fallback, not normally reached)
         elif n == 3 and write_output:
             out_arg = args[-1]
-            Path(out_arg).write_bytes(b"fake music mp4")
+            Path(out_arg).write_bytes(b"fake extra mp4")
             return types.SimpleNamespace(returncode=0, stdout="", stderr="")
         return types.SimpleNamespace(returncode=0, stdout="", stderr="")
 
@@ -316,10 +324,12 @@ class TestAssembleMusicPath:
             )
             AssembleStage().run(workdir, config)
 
-        # Count how many run_ffmpeg calls contained "loudnorm"
+        # Count how many run_ffmpeg calls invoked a loudnorm filter.
+        # Check per-element (not joined string) to avoid matching "loudnorm" that appears
+        # in the pytest tmp_path directory name (e.g. test_single_loudnorm_with_musi0).
         loudnorm_calls = [
             args for args in call_args_log
-            if "loudnorm" in " ".join(args)
+            if any("loudnorm=" in a for a in args)
         ]
         assert len(loudnorm_calls) == 1, (
             f"With bg_music_path set, loudnorm must run exactly ONCE (single pass on "
@@ -352,10 +362,11 @@ class TestAssembleMusicPath:
             )
             AssembleStage().run(workdir, config)
 
-        # Without music, loudnorm must still run (existing behavior preserved)
+        # Without music, loudnorm must still run (existing behavior preserved).
+        # Check per-element to avoid matching "loudnorm" in the pytest tmp_path name.
         loudnorm_calls = [
             args for args in call_args_log
-            if "loudnorm" in " ".join(args)
+            if any("loudnorm=" in a for a in args)
         ]
         assert len(loudnorm_calls) >= 1, (
             "Without bg_music_path, loudnorm must still run at least once "
