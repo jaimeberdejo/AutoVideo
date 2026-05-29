@@ -8,8 +8,9 @@ Design decisions:
 - Lazy client singleton (mirrors elevenlabs.py D-03): importing this module does NOT
   require OPENAI_API_KEY. The SDK reads the key from the environment only when the
   first call is made.
-- max_retries=3: explicit retry parameter (the openai SDK does NOT add retries by
-  default, unlike the ElevenLabs SDK which handles 429/5xx internally).
+- max_retries=3: one retry above the SDK default of 2 (DEFAULT_MAX_RETRIES=2), for
+  extra resilience on transient 429/5xx errors. Explicit value documents intent and
+  guards against future SDK default changes.
 - 4096-char guard (T-08-03-03): raises ValueError before the API call; the storyboard
   WPM budget (150 WPM × max 60s = 1500 chars) keeps slides well under this limit,
   but the guard catches misconfiguration.
@@ -51,8 +52,9 @@ def _get_client():
 
     Security note (T-08-03-01): the SDK reads OPENAI_API_KEY from the
     environment automatically. NEVER log the key or pass it explicitly here.
-    max_retries=3 is set explicitly because the openai SDK defaults to 0
-    (unlike the ElevenLabs SDK which handles retries internally).
+    max_retries=3: one retry above the SDK default of 2 (DEFAULT_MAX_RETRIES=2),
+    for extra resilience on transient 429/5xx errors. The explicit value documents
+    intent and guards against future SDK default changes.
 
     Returns:
         A shared ``OpenAI`` SDK client instance.
