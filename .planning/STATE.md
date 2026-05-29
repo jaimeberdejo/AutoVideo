@@ -4,14 +4,14 @@ milestone: v2.0.0
 milestone_name: Studio Guiado
 status: executing
 stopped_at: Roadmap v2.0.0 created; ready for `/gsd-plan-phase 8`
-last_updated: "2026-05-29T13:41:57.416Z"
+last_updated: "2026-05-29T13:46:01.882Z"
 last_activity: 2026-05-29
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 5
-  completed_plans: 1
-  percent: 20
+  completed_plans: 2
+  percent: 40
 ---
 
 # Project State
@@ -26,12 +26,12 @@ See: .planning/PROJECT.md (updated 2026-05-29)
 ## Current Position
 
 Phase: 8 (Backend Integrations) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
 Last activity: 2026-05-29
 
 ```
-Progress: [██░░░░░░░░] 20%
+Progress: [████░░░░░░] 40%
 ```
 
 ## Performance Metrics
@@ -60,6 +60,7 @@ Progress: [██░░░░░░░░] 20%
 
 *Updated after each plan completion*
 | Phase 08-backend-integrations P01 | 5 | 2 tasks | 3 files |
+| Phase 08 P02 | 126 | - tasks | - files |
 
 ## Accumulated Context
 
@@ -79,6 +80,8 @@ Recent decisions affecting current work (v2.0.0):
 - **invalidate_downstream:** implement in WorkdirManager before building any editable widget; deletes done markers for all stages after a given stage
 - [Phase ?]: Wave 0 scaffold — deferred imports allow 21 tests to collect before implementation modules exist
 - [Phase ?]: Mock seam for OpenAI integration is _get_client (lazy singleton) — mirrors elevenlabs pattern for import-safety
+- [Phase ?]: All new RunConfig fields use Optional/defaults — backward-compatible with 303 tests
+- [Phase ?]: openai>=2.38.0 in core deps; python-dotenv promoted from dev to core
 
 ### Pending Todos
 
@@ -107,6 +110,6 @@ Carried forward from v1.60.0 (non-blocking):
 
 ## Session Continuity
 
-Last session: 2026-05-29T13:41:27.082Z
+Last session: 2026-05-29T13:45:57.427Z
 Stopped at: Roadmap v2.0.0 created; ready for `/gsd-plan-phase 8`
 Resume file: None
