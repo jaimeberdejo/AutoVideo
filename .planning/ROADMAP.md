@@ -70,7 +70,7 @@ Plans:
 Plans:
 - [x] 09-01-PLAN.md — Wave 0: RED test scaffolds (test_workdir_invalidate, test_bridge, test_ui_state)
 - [x] 09-02-PLAN.md — Wave 1a: WorkdirManager.invalidate_downstream + avideo studio CLI + streamlit dep
-- [ ] 09-03-PLAN.md — Wave 1b: ui/state.py + ui/bridge.py (PipelineBridge, RunStatus)
+- [x] 09-03-PLAN.md — Wave 1b: ui/state.py + ui/bridge.py (PipelineBridge, RunStatus)
 - [ ] 09-04-PLAN.md — Wave 2: app.py shell + 6 placeholder phase pages + .streamlit/config.toml
 **UI hint**: yes
 
@@ -135,7 +135,7 @@ Plans:
 | 6. Slides Hybrid/Manual + Verificador | v1.60.0 | 2/2 | Complete | 2026-05-26 |
 | 7. Empaquetado + Tests + Docs | v1.60.0 | 3/3 | Complete | 2026-05-26 |
 | 8. Backend Integrations | v2.0.0 | 5/5 | Complete   | 2026-05-29 |
-| 9. UI Foundation | v2.0.0 | 2/4 | In Progress|  |
+| 9. UI Foundation | v2.0.0 | 3/4 | In Progress|  |
 | 10. Contenido Page | v2.0.0 | 0/- | Not started | - |
 | 11. Guion + Slides Pages | v2.0.0 | 0/- | Not started | - |
 | 12. Voz Page | v2.0.0 | 0/- | Not started | - |
