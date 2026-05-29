@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0.0
 milestone_name: Studio Guiado
 status: executing
-stopped_at: Roadmap v2.0.0 created; ready for `/gsd-plan-phase 8`
-last_updated: "2026-05-29T13:46:01.882Z"
+stopped_at: Completed 08-03-PLAN.md
+last_updated: "2026-05-29T13:52:43.215Z"
 last_activity: 2026-05-29
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 5
-  completed_plans: 2
-  percent: 40
+  completed_plans: 3
+  percent: 60
 ---
 
 # Project State
@@ -26,12 +26,12 @@ See: .planning/PROJECT.md (updated 2026-05-29)
 ## Current Position
 
 Phase: 8 (Backend Integrations) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
 Last activity: 2026-05-29
 
 ```
-Progress: [████░░░░░░] 40%
+Progress: [██████░░░░] 60%
 ```
 
 ## Performance Metrics
@@ -61,6 +61,7 @@ Progress: [████░░░░░░] 40%
 *Updated after each plan completion*
 | Phase 08-backend-integrations P01 | 5 | 2 tasks | 3 files |
 | Phase 08 P02 | 126 | - tasks | - files |
+| Phase 08-backend-integrations P03 | 233 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -82,6 +83,8 @@ Recent decisions affecting current work (v2.0.0):
 - [Phase ?]: Mock seam for OpenAI integration is _get_client (lazy singleton) — mirrors elevenlabs pattern for import-safety
 - [Phase ?]: All new RunConfig fields use Optional/defaults — backward-compatible with 303 tests
 - [Phase ?]: openai>=2.38.0 in core deps; python-dotenv promoted from dev to core
+- [Phase ?]: transcribe_slide_openai passes Path directly to SDK (no open()) — mock seam works without real file on disk; OpenAI SDK accepts Path objects
+- [Phase ?]: whisper-1 hard-coded in transcribe_slide_openai — gpt-4o-transcribe lacks word timestamps (T-08-03-04 / Pitfall 17)
 
 ### Pending Todos
 
@@ -110,6 +113,6 @@ Carried forward from v1.60.0 (non-blocking):
 
 ## Session Continuity
 
-Last session: 2026-05-29T13:45:57.427Z
-Stopped at: Roadmap v2.0.0 created; ready for `/gsd-plan-phase 8`
+Last session: 2026-05-29T13:52:43.211Z
+Stopped at: Completed 08-03-PLAN.md
 Resume file: None
