@@ -14,11 +14,11 @@
 
 - [ ] **UI-01**: El usuario lanza la UI (p. ej. `avideo studio`) y se abre un wizard local de 6 fases en el navegador
 - [ ] **UI-02**: Entre cada fase hay un gate de validación humana — el wizard no avanza hasta que el usuario confirma explícitamente
-- [ ] **UI-03**: El usuario puede retroceder a una fase anterior; al editar o regenerar, los checkpoints aguas abajo se invalidan (no se muestran resultados desincronizados)
-- [ ] **UI-04**: El estado del wizard se reconstruye desde los checkpoints de `workdir/` (sobrevive a refrescos/cierres del navegador); `session_state` solo guarda el workdir y la fase actual
-- [ ] **UI-05**: Las etapas largas (render de slides, TTS, montaje) se ejecutan sin bloquear la UI y muestran progreso hasta completarse
+- [x] **UI-03**: El usuario puede retroceder a una fase anterior; al editar o regenerar, los checkpoints aguas abajo se invalidan (no se muestran resultados desincronizados)
+- [x] **UI-04**: El estado del wizard se reconstruye desde los checkpoints de `workdir/` (sobrevive a refrescos/cierres del navegador); `session_state` solo guarda el workdir y la fase actual
+- [x] **UI-05**: Las etapas largas (render de slides, TTS, montaje) se ejecutan sin bloquear la UI y muestran progreso hasta completarse
 - [ ] **UI-06**: La UI muestra previews en vivo: bullets, guion por slide, thumbnails de slides y el vídeo final reproducible/descargable
-- [ ] **UI-07**: El CLI `generate` se conserva como motor headless; la UI invoca las etapas existentes sin reescribir el pipeline
+- [x] **UI-07**: El CLI `generate` se conserva como motor headless; la UI invoca las etapas existentes sin reescribir el pipeline
 
 ### CNT — Fase 1 Contenido
 
@@ -93,11 +93,11 @@ Qué fases cubren qué requisitos.
 |-------------|-------|--------|
 | UI-01 | Phase 9 | Pending |
 | UI-02 | Phase 9 | Pending |
-| UI-03 | Phase 9 | Pending |
-| UI-04 | Phase 9 | Pending |
-| UI-05 | Phase 9 | Pending |
+| UI-03 | Phase 9 | Complete |
+| UI-04 | Phase 9 | Complete |
+| UI-05 | Phase 9 | Complete |
 | UI-06 | Phase 9 | Pending |
-| UI-07 | Phase 9 | Pending |
+| UI-07 | Phase 9 | Complete |
 | CNT-01 | Phase 10 | Pending |
 | CNT-02 | Phase 10 | Pending |
 | CNT-03 | Phase 10 | Pending |
