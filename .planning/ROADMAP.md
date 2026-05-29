@@ -31,7 +31,7 @@ Full phase detail: [milestones/v1.60.0-ROADMAP.md](milestones/v1.60.0-ROADMAP.md
 - [x] **Phase 8: Backend Integrations** — OpenAI Audio TTS + STT round-trip + audio enhancement + background music FFmpeg pipeline (completed 2026-05-29)
 - [x] **Phase 9: UI Foundation** — Streamlit shell + PipelineBridge + state model + invalidate_downstream + workdir reconstruction (completed 2026-05-29)
 - [x] **Phase 10: Contenido Page** — Fase 1 wizard: intake de tema + duración + auto-generación de bullets + gate de aprobación (completed 2026-05-29)
-- [ ] **Phase 11: Guion + Slides Pages** — Fases 2 y 3 wizard: guion editable + variaciones + slides interactivas + verificador QC
+- [x] **Phase 11: Guion + Slides Pages** — Fases 2 y 3 wizard: guion editable + variaciones + slides interactivas + verificador QC (completed 2026-05-29)
 - [ ] **Phase 12: Voz Page** — Fase 4 wizard: selección de proveedor de narración + previews de audio + gate de aprobación
 - [ ] **Phase 13: Extras + Ensamblaje + Polish** — Fases 5–6 wizard: extras + montaje final + preview/descarga + packaging y tests
 
@@ -106,7 +106,7 @@ Plans:
 - [x] 11-01-PLAN.md — Wave 0: RED test scaffold for pipeline_ops glue (single-stage re-run, script persistence, upload path, badge mapping)
 - [x] 11-02-PLAN.md — Wave 1: ui/pipeline_ops.py — rerun_scriptwriter, rerun_slides, persist_edited_script, write_uploaded_slide, badge_for_verdict
 - [x] 11-03-PLAN.md — Wave 2a: phase_2_guion.py — Fase 2 real page (auto-run + editor + variation + approve gate)
-- [ ] 11-04-PLAN.md — Wave 2b: phase_3_slides.py — Fase 3 real page (mode radio + thumbnails + upload + QC badges + approve gate)
+- [x] 11-04-PLAN.md — Wave 2b: phase_3_slides.py — Fase 3 real page (mode radio + thumbnails + upload + QC badges + approve gate)
 **UI hint**: yes
 
 ### Phase 12: Voz Page
@@ -148,6 +148,6 @@ Plans:
 | 8. Backend Integrations | v2.0.0 | 5/5 | Complete   | 2026-05-29 |
 | 9. UI Foundation | v2.0.0 | 4/4 | Complete   | 2026-05-29 |
 | 10. Contenido Page | v2.0.0 | 3/3 | Complete   | 2026-05-29 |
-| 11. Guion + Slides Pages | v2.0.0 | 3/4 | In Progress|  |
+| 11. Guion + Slides Pages | v2.0.0 | 4/4 | Complete   | 2026-05-29 |
 | 12. Voz Page | v2.0.0 | 0/- | Not started | - |
 | 13. Extras + Ensamblaje + Polish | v2.0.0 | 0/- | Not started | - |
