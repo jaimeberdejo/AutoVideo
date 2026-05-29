@@ -108,12 +108,35 @@ Recent decisions affecting current work (v2.0.0):
 
 ### Blockers/Concerns
 
+**⚠ ACTION REQUIRED ON RETURN — your uncommitted WIP is stashed.**
+Before this autonomous run, your tracked working-tree edits (`bullets.yaml`, `config.yaml`,
+`src/avideo/stages/assemble.py`, `src/avideo/stages/slides_auto.py`,
+`src/avideo/templates/base.html.j2`, `src/avideo/templates/macros.html.j2`) were saved to
+**`git stash@{0}`** (label: `gsd-autonomous-wip-backup-2026-05-29`) so Phase 8 could rebuild
+`assemble.py` cleanly. Nothing was lost. Untracked files were left in place
+(`pexels.py`, `Apuntes/`, `FinFeed/`, `GUION.md`, `HANDOFF.md`, `theme.yaml`).
+To recover: `git stash show -p stash@{0}` to inspect; `git stash pop` to restore
+(EXPECT a conflict on `assemble.py` — Phase 8 added the music-mix Step 8.5 there;
+reconcile manually or `git checkout --theirs/--ours` per hunk).
+
+**⚠ Milestone v2.0.0 lifecycle NOT run (left for you per "ask when I come back"):**
+All 6 phases (8–13) are complete + verified, 397 tests green. The close-out steps were
+intentionally NOT run autonomously. When ready: `/gsd-audit-milestone` → `/gsd-complete-milestone v2.0.0` → `/gsd-cleanup`.
+
+**Deferred manual (browser/visual) verifications** — each phase verified `human_needed`;
+the automated layers all passed. Run `uv run avideo studio` and confirm:
+- Phase 9: 6-phase wizard, stepper, gated continue, back-nav confirm + invalidate, resume-from-workdir on refresh.
+- Phase 10: Fase 1 topic+duration, both bullet sources, data_editor, approve → bullets.yaml (then `avideo generate --bullets workdir/bullets.yaml --dry-run`).
+- Phase 11: Fase 2 guion auto-run + inline edit + variation (only scriptwriter); Fase 3 slides auto thumbnails+QC badges + upload+Claude-Vision QC.
+- Phase 12: Fase 4 three providers + per-slide st.audio + non-destructive enhance (before/after + Adoptar) + gate.
+- Phase 13: Fase 5 extras widgets; Fase 6 "Montar vídeo" non-blocking progress → st.video + download + QA metrics. Optional: `docker build -t avideo-test .`.
+
 Carried forward from v1.60.0 (non-blocking):
 
 - WPM efectivo de ElevenLabs en español es estimado (150); requiere calibración empírica
-- FFmpeg `arnndn` requiere archivo modelo `.rnnn`; usar `afftdn` como default (no model file needed)
 - `whisper-1` quality for Spanish word timestamps: acceptable but not perfect; fallback = WhisperX (already in [record] optional group)
 - `fcntl.flock` for workdir lockfile is Unix/macOS only — acceptable for v2.0.0 target (macOS + Docker/Linux)
+- Code review was run on Phase 8 (2 blockers + 5 warnings fixed); deferred for the UI phases 9–13 (verifier-confirmed against code + 397 tests). Consider `/gsd-code-review` on the ui/ package on return.
 
 ## Deferred Items
 
@@ -129,6 +152,7 @@ Carried forward from v1.60.0 (non-blocking):
 
 ## Session Continuity
 
-Last session: 2026-05-29T17:57:13.165Z
-Stopped at: Completed 12-03-PLAN.md
+Last session: 2026-05-29 (autonomous run, phases 8–13)
+Stopped at: v2.0.0 phases 8–13 ALL complete + verified (397 tests green, roadmap 100%). Milestone close-out (audit/complete/cleanup) intentionally deferred. User WIP in git stash@{0} — see Blockers/Concerns for restore + the deferred browser checks.
 Resume file: None
+Next: restore/reconcile stash@{0}; run the deferred `avideo studio` browser checks; then `/gsd-audit-milestone` → `/gsd-complete-milestone v2.0.0` → `/gsd-cleanup`.
