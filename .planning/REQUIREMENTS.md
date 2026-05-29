@@ -29,15 +29,15 @@
 ### SCR — Fase 2 Guion
 
 - [ ] **SCR-01**: A partir de la duración, el sistema deriva el nº de slides y genera el guion por slide (reusa storyboard + timing + scriptwriter)
-- [ ] **SCR-02**: El usuario puede editar directamente el texto del guion de cualquier slide en la UI
-- [ ] **SCR-03**: El usuario puede pedir variaciones del guion (regenerar con Claude) e iterar hasta dar el visto bueno
-- [ ] **SCR-04**: Al aprobar, el guion editado se persiste como checkpoint e invalida las etapas aguas abajo si cambió
+- [x] **SCR-02**: El usuario puede editar directamente el texto del guion de cualquier slide en la UI
+- [x] **SCR-03**: El usuario puede pedir variaciones del guion (regenerar con Claude) e iterar hasta dar el visto bueno
+- [x] **SCR-04**: Al aprobar, el guion editado se persiste como checkpoint e invalida las etapas aguas abajo si cambió
 
 ### SLD — Fase 3 Diapositivas
 
-- [ ] **SLD-01**: El usuario elige que la app genere las slides (modo `auto`) o subir las suyas siguiendo el esquema definido (orden, contenido, nº de slides)
-- [ ] **SLD-02**: Si las genera la app, el usuario puede revisarlas, editar/regenerar y pedir variaciones, iterando hasta aprobar
-- [ ] **SLD-03**: Si las sube el usuario, el verificador Claude Vision ejecuta un control de calidad por slide (ok/warning/fail) avisando de discrepancias con el esquema/guion; el usuario puede re-subir
+- [x] **SLD-01**: El usuario elige que la app genere las slides (modo `auto`) o subir las suyas siguiendo el esquema definido (orden, contenido, nº de slides)
+- [x] **SLD-02**: Si las genera la app, el usuario puede revisarlas, editar/regenerar y pedir variaciones, iterando hasta aprobar
+- [x] **SLD-03**: Si las sube el usuario, el verificador Claude Vision ejecuta un control de calidad por slide (ok/warning/fail) avisando de discrepancias con el esquema/guion; el usuario puede re-subir
 
 ### VOZ — Fase 4 Voz
 
@@ -102,12 +102,12 @@ Qué fases cubren qué requisitos.
 | CNT-02 | Phase 10 | Complete |
 | CNT-03 | Phase 10 | Complete |
 | SCR-01 | Phase 11 | Pending |
-| SCR-02 | Phase 11 | Pending |
-| SCR-03 | Phase 11 | Pending |
-| SCR-04 | Phase 11 | Pending |
-| SLD-01 | Phase 11 | Pending |
-| SLD-02 | Phase 11 | Pending |
-| SLD-03 | Phase 11 | Pending |
+| SCR-02 | Phase 11 | Complete |
+| SCR-03 | Phase 11 | Complete |
+| SCR-04 | Phase 11 | Complete |
+| SLD-01 | Phase 11 | Complete |
+| SLD-02 | Phase 11 | Complete |
+| SLD-03 | Phase 11 | Complete |
 | VOZ-01 | Phase 12 | Pending |
 | VOZ-02 | Phase 8 | Complete |
 | VOZ-03 | Phase 8 | Complete |

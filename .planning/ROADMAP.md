@@ -103,7 +103,7 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 11-01-PLAN.md — Wave 0: RED test scaffold for pipeline_ops glue (single-stage re-run, script persistence, upload path, badge mapping)
+- [x] 11-01-PLAN.md — Wave 0: RED test scaffold for pipeline_ops glue (single-stage re-run, script persistence, upload path, badge mapping)
 - [ ] 11-02-PLAN.md — Wave 1: ui/pipeline_ops.py — rerun_scriptwriter, rerun_slides, persist_edited_script, write_uploaded_slide, badge_for_verdict
 - [ ] 11-03-PLAN.md — Wave 2a: phase_2_guion.py — Fase 2 real page (auto-run + editor + variation + approve gate)
 - [ ] 11-04-PLAN.md — Wave 2b: phase_3_slides.py — Fase 3 real page (mode radio + thumbnails + upload + QC badges + approve gate)
@@ -148,6 +148,6 @@ Plans:
 | 8. Backend Integrations | v2.0.0 | 5/5 | Complete   | 2026-05-29 |
 | 9. UI Foundation | v2.0.0 | 4/4 | Complete   | 2026-05-29 |
 | 10. Contenido Page | v2.0.0 | 3/3 | Complete   | 2026-05-29 |
-| 11. Guion + Slides Pages | v2.0.0 | 0/- | Not started | - |
+| 11. Guion + Slides Pages | v2.0.0 | 1/4 | In Progress|  |
 | 12. Voz Page | v2.0.0 | 0/- | Not started | - |
 | 13. Extras + Ensamblaje + Polish | v2.0.0 | 0/- | Not started | - |

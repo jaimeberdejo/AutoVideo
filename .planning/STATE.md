@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0.0
 milestone_name: Studio Guiado
-status: completed
+status: executing
 stopped_at: Completed 10-03-PLAN.md
-last_updated: "2026-05-29T15:16:12.422Z"
-last_activity: 2026-05-29 -- Phase 10 Plan 03 completed (real Fase 1 Contenido page)
+last_updated: "2026-05-29T15:31:25.629Z"
+last_activity: 2026-05-29 -- Phase 11 execution started
 progress:
   total_phases: 6
   completed_phases: 3
-  total_plans: 12
-  completed_plans: 12
-  percent: 100
+  total_plans: 16
+  completed_plans: 13
+  percent: 81
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-29)
 
 **Core value:** A partir de unos bullets + una duración, obtener un vídeo narrado coherente y de alta calidad (slides + voz + subtítulos sincronizados) sin intervención manual obligatoria, con checkpoints opcionales de supervisión.
-**Current focus:** Phase 10 — Contenido Page
+**Current focus:** Phase 11 — Guion + Slides Pages
 
 ## Current Position
 
-Phase: 10 (Contenido Page) — EXECUTING
-Plan: 3 of 3
-Status: Phase 10 Plan 03 complete
-Last activity: 2026-05-29 -- Phase 10 Plan 03 completed (real Fase 1 Contenido page)
+Phase: 11 (Guion + Slides Pages) — EXECUTING
+Plan: 1 of ?
+Status: Executing Phase 11
+Last activity: 2026-05-29 -- Phase 11 execution started
 
 ```
 Progress: [██████████] 100%
@@ -120,6 +120,6 @@ Carried forward from v1.60.0 (non-blocking):
 
 ## Session Continuity
 
-Last session: 2026-05-29T15:16:12.419Z
+Last session: 2026-05-29T15:31:25.625Z
 Stopped at: Completed 10-03-PLAN.md
 Resume file: None
