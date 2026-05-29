@@ -4,14 +4,14 @@ milestone: v2.0.0
 milestone_name: Studio Guiado
 status: executing
 stopped_at: Completed 10-03-PLAN.md
-last_updated: "2026-05-29T15:42:20.804Z"
-last_activity: 2026-05-29 -- Phase 11 execution started
+last_updated: "2026-05-29T15:58:53.975Z"
+last_activity: 2026-05-29 -- Phase 12 execution started
 progress:
   total_phases: 6
   completed_phases: 4
-  total_plans: 16
-  completed_plans: 16
-  percent: 100
+  total_plans: 19
+  completed_plans: 17
+  percent: 89
 ---
 
 # Project State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-29)
 
 **Core value:** A partir de unos bullets + una duración, obtener un vídeo narrado coherente y de alta calidad (slides + voz + subtítulos sincronizados) sin intervención manual obligatoria, con checkpoints opcionales de supervisión.
-**Current focus:** Phase 11 — Guion + Slides Pages
+**Current focus:** Phase 12 — Voz Page
 
 ## Current Position
 
-Phase: 11 (Guion + Slides Pages) — EXECUTING
+Phase: 12 (Voz Page) — EXECUTING
 Plan: 1 of ?
-Status: Executing Phase 11
-Last activity: 2026-05-29 -- Phase 11 execution started
+Status: Executing Phase 12
+Last activity: 2026-05-29 -- Phase 12 execution started
 
 ```
-Progress: [█████████░] 94%
+Progress: [█████████░] 89%
 ```
 
 ## Performance Metrics
@@ -68,6 +68,7 @@ Progress: [█████████░] 94%
 | Phase 10-contenido-page P10-01 | 4 | 1 tasks | 1 files |
 | Phase 10-contenido-page P10-03 | 80 | 1 tasks | 1 files |
 | Phase 11-guion-slides-pages P03 | 87 | 1 tasks | 1 files |
+| Phase 12-voz-page P12-01 | 1 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -93,6 +94,7 @@ Recent decisions affecting current work (v2.0.0):
 - [Phase ?]: whisper-1 hard-coded in transcribe_slide_openai — gpt-4o-transcribe lacks word timestamps (T-08-03-04 / Pitfall 17)
 - [Phase ?]: Single-pass loudnorm when music present
 - [Phase 10-03]: bullets.yaml written via Path.write_text(yaml.safe_dump()) + separate context.json via workdir.write_checkpoint; both files needed for distinct consumers (CLI engine vs shell gate)
+- [Phase ?]: Wave 0 RED scaffold: deferred imports inside test bodies allow 11 tests to collect before helpers exist (mirrors Phase 11 pattern)
 
 ### Pending Todos
 
@@ -121,6 +123,6 @@ Carried forward from v1.60.0 (non-blocking):
 
 ## Session Continuity
 
-Last session: 2026-05-29T15:42:20.800Z
+Last session: 2026-05-29T15:58:50.090Z
 Stopped at: Completed 10-03-PLAN.md
 Resume file: None

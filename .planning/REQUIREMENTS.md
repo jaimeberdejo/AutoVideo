@@ -41,7 +41,7 @@
 
 ### VOZ — Fase 4 Voz
 
-- [ ] **VOZ-01**: El usuario elige el proveedor de narración: ElevenLabs, OpenAI Audio (nuevo) o subir sus propias grabaciones
+- [x] **VOZ-01**: El usuario elige el proveedor de narración: ElevenLabs, OpenAI Audio (nuevo) o subir sus propias grabaciones
 - [x] **VOZ-02**: OpenAI Audio sintetiza la voz por slide; como no entrega timestamps, se hace un round-trip STT (`whisper-1`, word-level) para mantener subtítulos sincronizados
 - [x] **VOZ-03**: Para audios subidos por el usuario, un botón aplica mejora automática (denoise + normalización, FFmpeg) con preview no destructivo antes de aplicar; la alineación de subtítulos usa el audio original sin procesar
 
@@ -108,7 +108,7 @@ Qué fases cubren qué requisitos.
 | SLD-01 | Phase 11 | Complete |
 | SLD-02 | Phase 11 | Complete |
 | SLD-03 | Phase 11 | Complete |
-| VOZ-01 | Phase 12 | Pending |
+| VOZ-01 | Phase 12 | Complete |
 | VOZ-02 | Phase 8 | Complete |
 | VOZ-03 | Phase 8 | Complete |
 | EXT-01 | Phase 13 | Pending |

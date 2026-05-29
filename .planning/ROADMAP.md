@@ -121,7 +121,7 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 12-01-PLAN.md — Wave 1: RED test scaffold for voice pipeline_ops helpers (rerun_voice, write_uploaded_audio, audio_gate_ready)
+- [x] 12-01-PLAN.md — Wave 1: RED test scaffold for voice pipeline_ops helpers (rerun_voice, write_uploaded_audio, audio_gate_ready)
 - [ ] 12-02-PLAN.md — Wave 2: Extend ui/pipeline_ops.py with 3 voice helpers (turns RED tests GREEN)
 - [ ] 12-03-PLAN.md — Wave 3: phase_4_voz.py — real Fase 4 page (provider radio + synthesis bridge + upload + enhance preview + gate)
 **UI hint**: yes
@@ -154,5 +154,5 @@ Plans:
 | 9. UI Foundation | v2.0.0 | 4/4 | Complete   | 2026-05-29 |
 | 10. Contenido Page | v2.0.0 | 3/3 | Complete   | 2026-05-29 |
 | 11. Guion + Slides Pages | v2.0.0 | 4/4 | Complete   | 2026-05-29 |
-| 12. Voz Page | v2.0.0 | 0/3 | In progress | - |
+| 12. Voz Page | v2.0.0 | 1/3 | In Progress|  |
 | 13. Extras + Ensamblaje + Polish | v2.0.0 | 0/- | Not started | - |
