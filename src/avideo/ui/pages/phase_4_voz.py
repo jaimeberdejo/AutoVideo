@@ -178,7 +178,36 @@ def _render_synthesis(workdir: WorkdirManager, config: object, n_slides: int) ->
         return False
 
     # ------------------------------------------------------------------
-    # Synthesis done — show per-slide st.audio previews (VOZ-01/2)
+    # Synthesis done — run AlignStage (instant passthrough for TTS) so
+    # .align.done is written before the approval gate returns True.
+    # PHASE_COMPLETION_STAGE[4]=='align' requires this marker for refresh-resume.
+    # ------------------------------------------------------------------
+    align_done = workdir.is_done("align")
+    if not align_done:
+        from avideo.stages.align import AlignStage  # noqa: PLC0415
+        from avideo.ui.bridge import run_stage  # noqa: PLC0415
+
+        run_stage(AlignStage(), workdir, config)
+
+        @st.fragment(run_every="2s")
+        def _poll_align_tts() -> None:
+            from avideo.ui.bridge import RunStatus, stage_status  # noqa: PLC0415
+
+            sa = stage_status("align", workdir)
+            if sa == RunStatus.DONE:
+                st.rerun()
+            elif sa == RunStatus.ERROR:
+                from avideo.ui.bridge import get_error  # noqa: PLC0415
+
+                st.error(f"Error en alineación: {get_error('align')}")
+            else:
+                st.info("Preparando timestamps de alineación...")
+
+        _poll_align_tts()
+        return False
+
+    # ------------------------------------------------------------------
+    # Both voice and align done — show per-slide st.audio previews (VOZ-01/2)
     # ------------------------------------------------------------------
     st.subheader("Previews de audio por diapositiva")
     for i in range(n_slides):
