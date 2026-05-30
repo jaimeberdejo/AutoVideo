@@ -142,21 +142,62 @@ def render(workdir: WorkdirManager) -> bool:
     st.session_state["run_config"] = rc_dict
 
     # ------------------------------------------------------------------
-    # Gate — immediate (config-only, no stage to run)
+    # Gate — run SubtitlesStage on approval so .subs.done is written.
+    # PHASE_COMPLETION_STAGE[5]=='subs' requires this marker for refresh-resume.
+    # Subtitles are ALWAYS generated; burn_subs only controls burning in Phase 6.
     # ------------------------------------------------------------------
     st.divider()
     if not music_on_disk_str and not burn_subs:
         st.info("Los extras son opcionales. Puedes continuar sin seleccionar ninguno.")
 
-    gate_met = st.session_state.get("extras_approved", False)
+    from avideo.ui.bridge import RunStatus, run_stage, stage_status  # noqa: PLC0415
+
+    subs_done = workdir.is_done("subs")
+    s_subs = stage_status("subs", workdir)
 
     if st.button(
         "Aprobar extras y continuar",
         key="btn_approve_extras",
         type="primary",
+        disabled=s_subs == RunStatus.RUNNING,
     ):
-        st.session_state["extras_approved"] = True
-        gate_met = True
+        # Build RunConfig from the updated rc_dict so SubtitlesStage receives
+        # all extras settings (e.g. burn_subs, bg_music_path, crossfade).
+        from avideo.models.config import RunConfig  # noqa: PLC0415
+        from avideo.stages.subtitles import SubtitlesStage  # noqa: PLC0415
+
+        try:
+            config_for_subs = RunConfig(**rc_dict)
+        except Exception as exc:  # noqa: BLE001
+            st.error(f"Error de configuración: {exc}")
+            return False
+
+        # Invalidate subs (and downstream) if re-approving after a change
+        workdir.done_marker("subs").unlink(missing_ok=True)
+        workdir.invalidate_downstream("subs")
+        run_stage(SubtitlesStage(), workdir, config_for_subs)
         st.rerun()
 
-    return gate_met
+    # Poll while SubtitlesStage is running (fast, but still async)
+    if not subs_done and s_subs == RunStatus.RUNNING:
+
+        @st.fragment(run_every="2s")
+        def _poll_subs() -> None:
+            from avideo.ui.bridge import RunStatus, get_error, stage_status  # noqa: PLC0415
+
+            ss = stage_status("subs", workdir)
+            if ss == RunStatus.DONE:
+                st.rerun()
+            elif ss == RunStatus.ERROR:
+                st.error(f"Error generando subtítulos: {get_error('subs')}")
+            else:
+                st.info("Generando subtítulos...")
+
+        _poll_subs()
+
+    if not subs_done and s_subs == RunStatus.ERROR:
+        from avideo.ui.bridge import get_error  # noqa: PLC0415
+
+        st.error(f"Error generando subtítulos: {get_error('subs')}")
+
+    return subs_done
