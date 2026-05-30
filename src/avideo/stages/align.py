@@ -9,10 +9,10 @@ ALIGN-01 (record mode):
     resulting ``word_segments`` to ``WordTiming`` objects and updates the
     ``SlideTimings.words`` list.  Returns ``UnifiedTimings(source="whisperx")``.
 
-ALIGN-02 (elevenlabs mode):
-    The ``voice`` checkpoint (``UnifiedTimings(source="elevenlabs")``) already
-    contains word-level timestamps from ``VoiceElevenlabsStage``.  ``AlignStage``
-    is a **no-op idempotent passthrough** — it reads the voice checkpoint and
+ALIGN-02 (elevenlabs / openai mode):
+    The ``voice`` checkpoint already contains word-level timestamps from
+    ``VoiceElevenlabsStage`` or ``VoiceOpenAIStage``.  ``AlignStage`` is a
+    **no-op idempotent passthrough** — it reads the voice checkpoint and
     returns it unchanged, without calling ``align_wav`` or loading any model.
     This keeps ``subtitles.py`` source-agnostic (D-11).
 
@@ -56,10 +56,9 @@ class AlignStage(CheckpointMixin):
         alignment on the slide's WAV to produce word-level timestamps.  Returns
         ``UnifiedTimings(source="whisperx")`` with populated ``words`` lists.
 
-    In ``elevenlabs`` mode (ALIGN-02):
-        Returns the ``voice`` checkpoint unchanged.  The ElevenLabs-produced
-        ``UnifiedTimings`` already contains word timestamps from
-        ``VoiceElevenlabsStage`` — no alignment step is needed.
+    In ``elevenlabs`` or ``openai`` mode (ALIGN-02):
+        Returns the ``voice`` checkpoint unchanged.  Both TTS providers produce
+        ``UnifiedTimings`` with word timestamps — no alignment step is needed.
 
     The stage does **NOT** write checkpoints — the orchestrator calls
     ``workdir.write_checkpoint("align", result)`` after ``run()`` returns.
@@ -80,7 +79,7 @@ class AlignStage(CheckpointMixin):
 
         Returns:
             ``UnifiedTimings(source="whisperx")`` in record mode, or the
-            original ``UnifiedTimings(source="elevenlabs")`` in elevenlabs mode.
+            original ``UnifiedTimings`` unchanged in elevenlabs/openai mode.
 
         Raises:
             FileNotFoundError: If the voice checkpoint does not exist.
@@ -88,9 +87,10 @@ class AlignStage(CheckpointMixin):
         """
         voice_timings: UnifiedTimings = workdir.read_checkpoint("voice", UnifiedTimings)  # type: ignore[assignment]
 
-        if config.voice == VoiceMode.elevenlabs:
+        if config.voice in (VoiceMode.elevenlabs, VoiceMode.openai):
             # ALIGN-02: no-op idempotent passthrough.
-            # ElevenLabs already produced word-level UnifiedTimings; return as-is.
+            # ElevenLabs and OpenAI TTS already produce word-level UnifiedTimings;
+            # return as-is without calling align_wav or loading any model.
             # whisperx is NOT imported/called on this path (D-06 preserved via integration layer).
             return voice_timings
 

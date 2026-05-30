@@ -310,6 +310,57 @@ def test_align_elevenlabs_noop_direct(tmp_path: Path):
 
 
 # ---------------------------------------------------------------------------
+# ALIGN-02 (openai mode): no-op passthrough — mirrors elevenlabs tests
+# ---------------------------------------------------------------------------
+
+
+def test_align_openai_noop(tmp_path: Path):
+    """In openai mode, AlignStage is a no-op; align_wav must NOT be called.
+
+    VoiceOpenAIStage already produces UnifiedTimings(source='openai') with
+    word-level timestamps.  AlignStage must pass them through unchanged so
+    that SubtitlesStage receives valid data without requiring whisperx.
+    """
+    workdir = WorkdirManager(tmp_path / "workdir")
+
+    openai_slides = [
+        SlideTimings(
+            slide_index=0,
+            audio_path="audio/slide_00.mp3",
+            duration=2.4,
+            words=[
+                WordTiming(text="hola", start=0.0, end=0.4),
+                WordTiming(text="mundo", start=0.5, end=0.9),
+            ],
+        )
+    ]
+    openai_timings = UnifiedTimings(source="openai", slides=openai_slides)
+    workdir.write_checkpoint("voice", openai_timings)
+
+    config = _build_config(tmp_path, voice=VoiceMode.openai)
+
+    from avideo.stages.align import AlignStage
+
+    mock_align_fn = MagicMock()
+    with patch("avideo.stages.align.align_wav", mock_align_fn):
+        stage = AlignStage()
+        result = stage.run(workdir, config)
+
+    # align_wav must NOT be called — openai already has word timestamps
+    assert not mock_align_fn.called, (
+        "align_wav must NOT be called in openai mode (ALIGN-02 no-op passthrough)"
+    )
+
+    # Result must be the unchanged voice checkpoint
+    assert result.source == "openai"
+    assert len(result.slides) == 1
+    assert result.slides[0].audio_path == "audio/slide_00.mp3"
+    assert result.slides[0].duration == pytest.approx(2.4)
+    assert result.slides[0].words[0].text == "hola"
+    assert result.slides[0].words[1].text == "mundo"
+
+
+# ---------------------------------------------------------------------------
 # Mock point: tests can patch avideo.stages.align.align_wav
 # ---------------------------------------------------------------------------
 
