@@ -2,6 +2,13 @@
 address = "127.0.0.1"
 maxUploadSize = 200
 
+[client]
+# Hide Streamlit's auto-generated multipage nav (the `pages/` folder is detected
+# as multipage pages). The Studio drives navigation via its own custom stepper,
+# so the auto nav is redundant — and clicking an auto page would run it without
+# the wizard's shared session/workdir state.
+showSidebarNavigation = false
+
 [theme]
 base = "light"
 
