@@ -175,3 +175,75 @@ class WorkdirManager:
         """
         path = self.checkpoint_path(name)
         return model_class.model_validate_json(path.read_text(encoding="utf-8"))
+
+    # ------------------------------------------------------------------
+    # Feedback transport (SEED-002: steerable variation)
+    # ------------------------------------------------------------------
+
+    def write_feedback(self, stage: str, text: str) -> None:
+        """Write (or merge) a feedback entry for *stage* into feedback.json.
+
+        If feedback.json already exists, the new entry is merged (added or
+        overwritten); existing entries for other stages are preserved.
+
+        Args:
+            stage: Stage name (e.g. ``"scriptwriter"``, ``"storyboard"``, ``"slides"``).
+            text:  Free-text instruction from the user.
+        """
+        from avideo.models.feedback import FeedbackCheckpoint  # noqa: PLC0415
+
+        path = self.root / "feedback.json"
+        if path.exists():
+            try:
+                cp = FeedbackCheckpoint.model_validate_json(path.read_text(encoding="utf-8"))
+            except Exception:  # noqa: BLE001
+                cp = FeedbackCheckpoint()
+        else:
+            cp = FeedbackCheckpoint()
+        cp.entries[stage] = text
+        path.write_text(cp.model_dump_json(indent=2), encoding="utf-8")
+
+    def read_feedback(self, stage: str) -> str | None:
+        """Return the feedback text for *stage*, or None if absent.
+
+        Returns None (never raises) when feedback.json is missing, malformed,
+        or when the stage key is not present — so stage run() methods can call
+        this unconditionally without a try/except.
+
+        Args:
+            stage: Stage name to look up.
+
+        Returns:
+            The stored feedback string, or ``None`` if not present.
+        """
+        from avideo.models.feedback import FeedbackCheckpoint  # noqa: PLC0415
+
+        path = self.root / "feedback.json"
+        if not path.exists():
+            return None
+        try:
+            cp = FeedbackCheckpoint.model_validate_json(path.read_text(encoding="utf-8"))
+            return cp.entries.get(stage)
+        except Exception:  # noqa: BLE001
+            return None
+
+    def clear_feedback(self, stage: str) -> None:
+        """Remove the feedback entry for *stage* (silent no-op if absent).
+
+        Called by each stage at the end of a successful run() so that a future
+        resume does not re-apply stale feedback (consumed-once lifecycle).
+
+        Args:
+            stage: Stage name whose entry should be removed.
+        """
+        from avideo.models.feedback import FeedbackCheckpoint  # noqa: PLC0415
+
+        path = self.root / "feedback.json"
+        if not path.exists():
+            return
+        try:
+            cp = FeedbackCheckpoint.model_validate_json(path.read_text(encoding="utf-8"))
+            cp.entries.pop(stage, None)
+            path.write_text(cp.model_dump_json(indent=2), encoding="utf-8")
+        except Exception:  # noqa: BLE001
+            pass
