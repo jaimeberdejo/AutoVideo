@@ -435,7 +435,7 @@ class TestRerunWithFeedback:
 
         bp = tmp_path / "bullets.yaml"
         bp.write_text("title: Demo\nbullets:\n  - x\n")
-        return RunConfig(bullets=bp)
+        return RunConfig(bullets=bp, duration=60)
 
     def test_scriptwriter_route_writes_feedback_and_runs_stage(
         self, tmp_path: Path, mocker
