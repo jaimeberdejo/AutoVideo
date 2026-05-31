@@ -116,14 +116,33 @@ def render(workdir: WorkdirManager) -> bool:
     col_var, col_approve = st.columns([1, 1])
 
     with col_var:
-        if st.button("Pedir variacion del guion", key="btn_variation"):
-            from avideo.ui.pipeline_ops import rerun_scriptwriter  # noqa: PLC0415
+        st.markdown("**Pedir variación del guion**")
+        variation_target = st.radio(
+            "¿Qué quieres cambiar?",
+            options=["Afinar tono / redacción", "Cambiar nº de slides / estructura"],
+            key="scr_variation_target",
+            horizontal=True,
+        )
+        variation_text = st.text_area(
+            "Instrucción (opcional — qué cambiar exactamente)",
+            key="scr_variation_text",
+            placeholder='Ej: "tono más cercano y sin tecnicismos" / "cambia el número de slides a 4"',
+            height=80,
+        )
+        if st.button("Aplicar variación", key="btn_variation"):
+            from avideo.ui.pipeline_ops import rerun_with_feedback  # noqa: PLC0415
 
             # Clear cached edits so editor repopulates from new script
             if "scr_edited_narrations" in st.session_state:
                 del st.session_state["scr_edited_narrations"]
+
+            target_stage = (
+                "storyboard"
+                if variation_target == "Cambiar nº de slides / estructura"
+                else "scriptwriter"
+            )
             config = _build_config(workdir)
-            rerun_scriptwriter(workdir, config)
+            rerun_with_feedback(workdir, config, target_stage, variation_text.strip())
             st.rerun()
 
     # ------------------------------------------------------------------
