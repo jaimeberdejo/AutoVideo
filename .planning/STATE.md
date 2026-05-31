@@ -5,7 +5,7 @@ milestone_name: Studio Guiado
 status: uat_in_progress
 stopped_at: v2.0.0 built + audited PASSED; UAT (browser) in progress; paused to plan SEED-002 with fresh context
 last_updated: "2026-05-31"
-last_activity: 2026-05-31 -- Studio UAT + fixes; paused before SEED-002
+last_activity: 2026-05-31 -- Completed quick task 260531-npu: SEED-002 variación dirigida (446 tests green)
 progress:
   total_phases: 6
   completed_phases: 6
@@ -150,6 +150,12 @@ Carried forward from v1.60.0 (non-blocking):
 - `whisper-1` quality for Spanish word timestamps: acceptable but not perfect; fallback = WhisperX (already in [record] optional group)
 - `fcntl.flock` for workdir lockfile is Unix/macOS only — acceptable for v2.0.0 target (macOS + Docker/Linux)
 - Code review was run on Phase 8 (2 blockers + 5 warnings fixed); deferred for the UI phases 9–13 (verifier-confirmed against code + 397 tests). Consider `/gsd-code-review` on the ui/ package on return.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260531-npu | SEED-002 — variación dirigida (text_area + selector de etapa en Fase 2/3; feedback.json → prompts; nº slides re-ejecuta storyboard; Pexels diferido a SEED-001) | 2026-05-31 | 32b300f | [260531-npu-seed-002-steerable-variation](./quick/260531-npu-seed-002-steerable-variation/) |
 
 ## Deferred Items
 
