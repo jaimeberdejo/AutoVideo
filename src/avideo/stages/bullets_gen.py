@@ -52,6 +52,62 @@ def validate_duration(seconds: int) -> int:
     return seconds
 
 
+def parse_duration(text: str) -> int:
+    """Parse a human duration into total seconds.
+
+    Accepts either a bare integer number of seconds (``"330"``) or a
+    colon-separated ``mm:ss`` / ``h:mm:ss`` form (``"5:30"`` -> 330). Does NOT
+    enforce the [DURATION_MIN, DURATION_MAX] bounds — call ``validate_duration``
+    on the result for that.
+
+    Args:
+        text: User-entered duration string.
+
+    Returns:
+        Total duration in seconds.
+
+    Raises:
+        ValueError: If the string is empty or not a valid seconds / mm:ss value.
+    """
+    s = (text or "").strip()
+    if not s:
+        raise ValueError("Duración vacía. Usa mm:ss (p. ej. 5:30) o segundos.")
+
+    if ":" in s:
+        parts = [p.strip() for p in s.split(":")]
+        if len(parts) > 3 or not all(p.isdigit() for p in parts):
+            raise ValueError(
+                f"Formato de duración inválido: '{text}'. Usa mm:ss (p. ej. 5:30) "
+                f"o un número de segundos."
+            )
+        nums = [int(p) for p in parts]
+        while len(nums) < 3:  # left-pad to [h, m, s]
+            nums.insert(0, 0)
+        hours, minutes, secs = nums
+        if minutes > 59 or secs > 59:
+            raise ValueError(
+                f"Minutos y segundos deben ser menores que 60: '{text}'."
+            )
+        return hours * 3600 + minutes * 60 + secs
+
+    if not s.isdigit():
+        raise ValueError(
+            f"Formato de duración inválido: '{text}'. Usa mm:ss (p. ej. 5:30) "
+            f"o un número de segundos."
+        )
+    return int(s)
+
+
+def format_duration(seconds: int) -> str:
+    """Format seconds as ``m:ss`` (or ``h:mm:ss`` when >= 1 hour)."""
+    seconds = max(0, int(seconds))
+    hours, rem = divmod(seconds, 3600)
+    minutes, secs = divmod(rem, 60)
+    if hours:
+        return f"{hours}:{minutes:02d}:{secs:02d}"
+    return f"{minutes}:{secs:02d}"
+
+
 # ---------------------------------------------------------------------------
 # System / user prompt templates
 # ---------------------------------------------------------------------------

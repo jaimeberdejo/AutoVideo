@@ -24,7 +24,9 @@ from avideo.models.bullets import BulletsInput
 from avideo.stages.bullets_gen import (
     DURATION_MAX,
     DURATION_MIN,
+    format_duration,
     generate_bullets,
+    parse_duration,
     validate_duration,
 )
 from avideo.utils.workdir import WorkdirManager
@@ -77,22 +79,27 @@ def render(workdir: WorkdirManager) -> bool:
         )
 
     with col2:
-        duration_raw: int = st.number_input(
-            "Duración objetivo (s)",
+        duration_text: str = st.text_input(
+            "Duración objetivo (mm:ss o segundos)",
             key="cnt_duration",
-            min_value=DURATION_MIN,
-            max_value=DURATION_MAX,
-            value=120,
-            step=15,
+            value="2:00",
+            placeholder="p. ej. 5:30",
+            help=(
+                f"Acepta mm:ss (p. ej. 5:30) o segundos. "
+                f"Entre {format_duration(DURATION_MIN)} y {format_duration(DURATION_MAX)}."
+            ),
         )
 
-    # Defensive validation (widget enforces bounds, but validate_duration
-    # provides a hard-coded safety net aligned with the spec — T-10-03-04).
+    # Parse mm:ss / seconds, then enforce the [DURATION_MIN, DURATION_MAX] bounds
+    # (T-10-03-04 safety net). Either failure shows a clear error and locks the gate.
     try:
-        validate_duration(int(duration_raw))
+        duration_s: int = parse_duration(duration_text)
+        validate_duration(duration_s)
     except ValueError as exc:
         st.error(f"Duración inválida: {exc}")
         return False
+
+    st.caption(f"Duración: {format_duration(duration_s)} ({duration_s} s)")
 
     # -----------------------------------------------------------------------
     # SECTION 2 — Source choice (CNT-02)
@@ -119,7 +126,7 @@ def render(workdir: WorkdirManager) -> bool:
                 with st.spinner("Generando bullets con Claude..."):
                     try:
                         bullets_raw = generate_bullets(
-                            topic.strip(), int(duration_raw)
+                            topic.strip(), duration_s
                         )
                         st.session_state["cnt_generated_bullets"] = bullets_raw
                     except Exception as exc:  # noqa: BLE001
@@ -190,7 +197,7 @@ def render(workdir: WorkdirManager) -> bool:
             # Update session_state run_config for downstream phases.
             rc = st.session_state.get("run_config", {})
             rc["topic"] = topic.strip()
-            rc["duration"] = int(duration_raw)
+            rc["duration"] = duration_s
             st.session_state["run_config"] = rc
 
             gate_met = True
