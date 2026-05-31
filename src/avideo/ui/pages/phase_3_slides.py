@@ -123,12 +123,26 @@ def _render_auto(workdir: WorkdirManager, config: object) -> bool:
 
             if s_slides == RunStatus.ERROR:
                 st.error(f"Error generando slides: {get_error('slides')}")
-            elif s_slides in (RunStatus.RUNNING, RunStatus.IDLE):
+                return
+            if s_verify == RunStatus.ERROR:
+                st.error(f"Error verificando: {get_error('verify')}")
+                return
+
+            if s_verify == RunStatus.DONE:
+                st.rerun()  # full rerun → show thumbnail grid below
+                return
+
+            if s_slides != RunStatus.DONE:
                 st.info("Generando diapositivas...")
-            elif s_slides == RunStatus.DONE and s_verify in (RunStatus.RUNNING, RunStatus.IDLE):
+            else:
                 st.info("Verificando calidad...")
-            elif s_verify == RunStatus.DONE:
-                st.rerun()  # exit fragment loop; show thumbnails below
+
+            # Advance the chain: if no stage is running, the previous one
+            # finished and the next pending stage must be launched by a FULL
+            # page rerun (the main render body launches slides → verify in turn).
+            running = s_slides == RunStatus.RUNNING or s_verify == RunStatus.RUNNING
+            if not running:
+                st.rerun()
 
         _poll_slides_auto()
         return False
@@ -257,32 +271,54 @@ def _render_upload(workdir: WorkdirManager, config: object) -> bool:
     # Verify button (only once all slides present)
     # ------------------------------------------------------------------
     verify_done = workdir.is_done("verify")
+    slides_ingested = workdir.is_done("slides")
 
     if all_uploaded and not verify_done:
+        # Trigger ingest+verify. Launch ONLY slides on the button; verify is
+        # launched below once ingest is done (avoids the race where verify ran
+        # on not-yet-ingested slides). The poll fragment advances the chain.
         if st.button("Verificar diapositivas (Claude Vision)", key="btn_verify"):
             from avideo.stages.slides_dispatch import SlidesDispatchStage  # noqa: PLC0415
+            from avideo.ui.bridge import run_stage  # noqa: PLC0415
+
+            # Force re-ingest of the uploaded slides + clear downstream markers.
+            workdir.done_marker("slides").unlink(missing_ok=True)
+            workdir.invalidate_downstream("slides")
+            run_stage(SlidesDispatchStage(), workdir, config)
+            st.rerun()
+
+        # Once slides are ingested, launch verify (idempotent).
+        if slides_ingested and not verify_done:
             from avideo.stages.verify_slides import VerifyStage  # noqa: PLC0415
             from avideo.ui.bridge import run_stage  # noqa: PLC0415
 
-            # Invalidate old done-markers so re-run triggers properly
-            workdir.invalidate_downstream("slides")
-            run_stage(SlidesDispatchStage(), workdir, config)
             run_stage(VerifyStage(), workdir, config)
-            st.rerun()
 
-        # Poll if stages are running
         @st.fragment(run_every="2s")
         def _poll_slides_verify() -> None:
             from avideo.ui.bridge import RunStatus, get_error, stage_status  # noqa: PLC0415
 
-            sv = stage_status("verify", workdir)
             ss = stage_status("slides", workdir)
-            if ss == RunStatus.RUNNING or sv == RunStatus.RUNNING:
-                st.info("Verificando con Claude Vision...")
-            elif sv == RunStatus.DONE:
-                st.rerun()
-            elif sv == RunStatus.ERROR:
+            sv = stage_status("verify", workdir)
+
+            if ss == RunStatus.ERROR:
+                st.error(f"Error ingiriendo slides: {get_error('slides')}")
+                return
+            if sv == RunStatus.ERROR:
                 st.error(f"Error verificando: {get_error('verify')}")
+                return
+            if sv == RunStatus.DONE:
+                st.rerun()  # full rerun → show verification report below
+                return
+            # Nothing launched yet (user hasn't clicked) — stay idle, no rerun.
+            if ss == RunStatus.IDLE and sv == RunStatus.IDLE:
+                return
+            st.info("Verificando con Claude Vision...")
+            # Advance: if no stage is running, the previous finished → full rerun
+            # so the main body launches the next pending stage (slides → verify).
+            running = ss == RunStatus.RUNNING or sv == RunStatus.RUNNING
+            if not running:
+                st.rerun()
 
         _poll_slides_verify()
 
