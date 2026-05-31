@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v2.0.0
 milestone_name: Studio Guiado
-status: executing
-stopped_at: Completed 12-03-PLAN.md
-last_updated: "2026-05-29T17:57:19.467Z"
-last_activity: 2026-05-29 -- Phase 13 execution started
+status: uat_in_progress
+stopped_at: v2.0.0 built + audited PASSED; UAT (browser) in progress; paused to plan SEED-002 with fresh context
+last_updated: "2026-05-31"
+last_activity: 2026-05-31 -- Studio UAT + fixes; paused before SEED-002
 progress:
   total_phases: 6
   completed_phases: 6
@@ -21,14 +21,27 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-29)
 
 **Core value:** A partir de unos bullets + una duración, obtener un vídeo narrado coherente y de alta calidad (slides + voz + subtítulos sincronizados) sin intervención manual obligatoria, con checkpoints opcionales de supervisión.
-**Current focus:** Phase 13 — Extras + Ensamblaje + Polish
+**Current focus:** v2.0.0 — UAT en navegador + cierre. Próximo trabajo planificado: SEED-002 (variación dirigida).
 
 ## Current Position
 
-Phase: 13 (Extras + Ensamblaje + Polish) — EXECUTING
-Plan: 1 of ?
-Status: Executing Phase 13
-Last activity: 2026-05-29 -- Phase 13 execution started
+Phase: v2.0.0 todas las fases (8–13) completas + audit PASSED. En UAT manual.
+Plan: —
+Status: Paused for fresh-context planning of SEED-002
+
+### Handoff (2026-05-31) — retomar tras /clear
+**Hecho esta sesión (todo en master, 398→419 tests verdes):**
+- v2.0.0 fases 8–13 completas; `/gsd-audit-milestone` → gaps_found (3 blockers integración) → fixed + verificado → **PASSED** (`.planning/v2.0.0-MILESTONE-AUDIT.md`).
+- Fixes de UAT en la UI: bullets None en data_editor; duración mm:ss (parse_duration); "+" del editor estable; **cuelgues de encadenado Fase 2 y Fase 3** (poll que avanza + tiempo transcurrido en vivo); nav multipágina redundante oculta (`showSidebarNavigation=false`).
+- Ejemplo de prueba: `examples/demo-presupuesto/` (bullets + music_bed.mp3 + README).
+- App corriendo: `uv run streamlit run src/avideo/ui/app.py` → http://localhost:8501 (parar: `lsof -ti :8501 | xargs kill`).
+
+**Próximos pasos (en orden):**
+1. **SEED-002 — variación dirigida** (Opción A elegida): implementar con contexto fresco. Ver `.planning/seeds/SEED-002-steerable-variation.md` (text_area en Fase 2/3 + feedback en prompts scriptwriter/storyboard/slides; ojo: "nº de slides" = storyboard, no solo scriptwriter; "más visual" enlaza con SEED-001/Pexels). Sugerido: `/gsd-quick` o fase corta.
+2. Terminar UAT de navegador de las 6 fases (las VERIFICATION.md están como human_needed por eso).
+3. Cerrar milestone: `/gsd-complete-milestone v2.0.0` → `/gsd-cleanup`.
+
+**Pendiente del usuario (no automático):** restaurar/reconciliar `git stash`→ (ya movido a rama `feature/pexels-slides` + SEED-001). Sin remoto git → commits/tag locales.
 
 ```
 Progress: [██████████] 100%
