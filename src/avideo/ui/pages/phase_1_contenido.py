@@ -135,15 +135,27 @@ def render(workdir: WorkdirManager) -> bool:
     # -----------------------------------------------------------------------
     # SECTION 4 — Editor (CNT-03): both paths use st.data_editor
     # -----------------------------------------------------------------------
-    if source == "Generar desde el tema (Claude)":
-        raw_list: list[str] = st.session_state.get("cnt_generated_bullets") or []
-    else:
-        raw_list = st.session_state.get("cnt_manual_bullets") or [""]
-
-    editor_data = [{"bullet": b} for b in raw_list] if raw_list else [{"bullet": ""}]
+    # st.data_editor owns its row state via its `key`. The base `data` MUST stay
+    # stable across reruns: rebuilding it every run made a freshly-added "+" row
+    # vanish on the next rerun (the empty row was filtered out of the base before
+    # the rerun re-rendered the editor). We therefore seed the base only when the
+    # underlying content actually changes — a source switch, or a NEW set of
+    # Claude-generated bullets. The signature deliberately EXCLUDES manual content
+    # so typing / adding rows in manual mode never reseeds (no disappearing rows,
+    # no duplicate rows).
+    gen_bullets: list[str] = st.session_state.get("cnt_generated_bullets") or []
+    seed_sig = (source, tuple(gen_bullets))
+    if st.session_state.get("cnt_editor_sig") != seed_sig:
+        if source == "Generar desde el tema (Claude)":
+            seed = [{"bullet": b} for b in gen_bullets]
+        else:
+            prev = st.session_state.get("cnt_manual_bullets") or []
+            seed = [{"bullet": b} for b in prev]
+        st.session_state["cnt_editor_rows"] = seed or [{"bullet": ""}]
+        st.session_state["cnt_editor_sig"] = seed_sig
 
     edited = st.data_editor(
-        editor_data,
+        st.session_state["cnt_editor_rows"],
         num_rows="dynamic",
         column_config={
             "bullet": st.column_config.TextColumn("Bullet", width="large")
@@ -152,11 +164,11 @@ def render(workdir: WorkdirManager) -> bool:
         key="cnt_bullets_editor",
     )
 
-    # Persist manual bullets back to session_state so they survive reruns.
+    # Persist manual bullets for cross-source / navigation recall. This does NOT
+    # reseed the editor within the same source (seed_sig ignores manual content),
+    # so added/edited rows survive reruns via the widget key.
     if source == "Escribir mis bullets":
-        st.session_state["cnt_manual_bullets"] = [
-            r["bullet"] for r in edited if r.get("bullet")
-        ]
+        st.session_state["cnt_manual_bullets"] = clean_bullet_rows(edited)
 
     approved_bullets: list[str] = clean_bullet_rows(edited)
 
