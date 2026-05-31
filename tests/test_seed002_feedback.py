@@ -185,7 +185,7 @@ class TestStoryboardFeedbackPrompt:
                 SlideSpec(
                     title="Intro",
                     bullets=["Bienvenidos"],
-                    visual_type=VisualType.TITLE,
+                    visual_type=VisualType.title,
                 ),
             ],
             language="es",
@@ -195,7 +195,7 @@ class TestStoryboardFeedbackPrompt:
     def test_no_feedback_block_when_feedback_is_none(self, tmp_path: Path) -> None:
         """_build_prompts with feedback=None does NOT include the feedback delimiter."""
         from avideo.stages.storyboard import _build_prompts
-        from avideo.utils.bullets import BulletsInput
+        from avideo.models.bullets import BulletsInput
 
         bullets_input = BulletsInput(title="Demo", bullets=["Punto A"])
         _system, user = _build_prompts(
@@ -211,7 +211,7 @@ class TestStoryboardFeedbackPrompt:
     def test_feedback_block_present_when_feedback_is_string(self, tmp_path: Path) -> None:
         """_build_prompts with feedback='cambia a 4 slides' includes the delimiter block."""
         from avideo.stages.storyboard import _build_prompts
-        from avideo.utils.bullets import BulletsInput
+        from avideo.models.bullets import BulletsInput
 
         bullets_input = BulletsInput(title="Demo", bullets=["Punto A"])
         _system, user = _build_prompts(
@@ -228,7 +228,7 @@ class TestStoryboardFeedbackPrompt:
     def test_feedback_block_present_with_context(self, tmp_path: Path) -> None:
         """_build_prompts includes feedback block even when context_text is also present."""
         from avideo.stages.storyboard import _build_prompts
-        from avideo.utils.bullets import BulletsInput
+        from avideo.models.bullets import BulletsInput
 
         bullets_input = BulletsInput(title="Demo", bullets=["Punto A"])
         _system, user = _build_prompts(
@@ -248,17 +248,17 @@ class TestScriptwriterFeedbackPrompt:
 
     def _make_fixtures(self):
         from avideo.models.storyboard import StoryboardOutput, SlideSpec, VisualType
-        from avideo.models.timing import TimingOutput, SlideTimingSpec
+        from avideo.models.timing import SlideTiming, TimingOutput
 
         sb = StoryboardOutput(
             slides=[
-                SlideSpec(title="Intro", bullets=["Bienvenidos"], visual_type=VisualType.TITLE),
+                SlideSpec(title="Intro", bullets=["Bienvenidos"], visual_type=VisualType.title),
             ],
             language="es",
         )
         tm = TimingOutput(
             total_seconds=60.0,
-            slides=[SlideTimingSpec(slide_index=0, duration_s=60.0, word_budget=100)],
+            slides=[SlideTiming(slide_index=0, seconds=60.0, word_budget=100)],
         )
         return sb, tm
 
@@ -289,7 +289,7 @@ class TestSlidesAutoFeedbackPrompt:
         from avideo.stages.slides_auto import resolve_theme
 
         sb = StoryboardOutput(
-            slides=[SlideSpec(title="Intro", bullets=["x"], visual_type=VisualType.TITLE)],
+            slides=[SlideSpec(title="Intro", bullets=["x"], visual_type=VisualType.title)],
             language="es",
         )
 
@@ -312,7 +312,7 @@ class TestSlidesAutoFeedbackPrompt:
         from avideo.stages.slides_auto import resolve_theme
 
         sb = StoryboardOutput(
-            slides=[SlideSpec(title="Intro", bullets=["x"], visual_type=VisualType.TITLE)],
+            slides=[SlideSpec(title="Intro", bullets=["x"], visual_type=VisualType.title)],
             language="es",
         )
 
@@ -338,19 +338,19 @@ class TestFeedbackConsumedOnce:
         """ScriptwriterStage.run() clears scriptwriter feedback after first call_structured."""
         from avideo.models.script import ScriptOutput, SlideScript
         from avideo.models.storyboard import StoryboardOutput, SlideSpec, VisualType
-        from avideo.models.timing import TimingOutput, SlideTimingSpec
+        from avideo.models.timing import SlideTiming, TimingOutput
         from avideo.stages.scriptwriter import ScriptwriterStage
         from avideo.utils.workdir import WorkdirManager
 
         # Build workdir with required checkpoints
         wm = WorkdirManager(tmp_path / "workdir")
         sb = StoryboardOutput(
-            slides=[SlideSpec(title="Intro", bullets=["x"], visual_type=VisualType.TITLE)],
+            slides=[SlideSpec(title="Intro", bullets=["x"], visual_type=VisualType.title)],
             language="es",
         )
         tm = TimingOutput(
             total_seconds=60.0,
-            slides=[SlideTimingSpec(slide_index=0, duration_s=60.0, word_budget=50)],
+            slides=[SlideTiming(slide_index=0, seconds=60.0, word_budget=50)],
         )
         wm.write_checkpoint("storyboard", sb)
         wm.write_checkpoint("timings", tm)
@@ -367,8 +367,9 @@ class TestFeedbackConsumedOnce:
 
         from avideo.models.config import RunConfig
 
-        config = RunConfig(bullets=tmp_path / "bullets.yaml")
-        (tmp_path / "bullets.yaml").write_text("title: Demo\nbullets:\n  - Punto A\n")
+        bp = tmp_path / "bullets.yaml"
+        bp.write_text("title: Demo\nbullets:\n  - Punto A\n")
+        config = RunConfig(bullets=bp, duration=60)
 
         stage = ScriptwriterStage()
         stage.run(wm, config)
@@ -394,14 +395,14 @@ class TestFeedbackConsumedOnce:
         wm.write_feedback("storyboard", "cambia a 4 slides")
 
         fake_sb = StoryboardOutput(
-            slides=[SlideSpec(title="Intro", bullets=["x"], visual_type=VisualType.TITLE)],
+            slides=[SlideSpec(title="Intro", bullets=["x"], visual_type=VisualType.title)],
             language="es",
         )
         mocker.patch("avideo.stages.storyboard.call_structured", return_value=fake_sb)
 
         from avideo.models.config import RunConfig
 
-        config = RunConfig(bullets=bullets_path)
+        config = RunConfig(bullets=bullets_path, duration=60)
 
         stage = StoryboardStage()
         stage.run(wm, config)

@@ -10,6 +10,8 @@ Design decisions:
 - D-03: Forced tool-use via call_structured() (no fragile text parsing).
 - D-04: Context text already truncated to CONTEXT_TOKEN_CAP by ContextStage.
 - T-02-06: Context text framed as untrusted reference material (prompt injection mitigation).
+- SEED-002: Optional feedback param in _build_prompts — appended as a delimited block
+  at end of user prompt when non-None; feedback=None produces identical prompts (backward compat).
 
 stage_name = "storyboard" matches StoryboardStub — checkpoint contract unchanged.
 
@@ -24,7 +26,7 @@ from avideo.integrations.anthropic import call_structured
 from avideo.models.context import ContextOutput
 from avideo.models.storyboard import StoryboardOutput
 from avideo.stages.base import CheckpointMixin
-from avideo.utils.bullets import load_bullets
+from avideo.utils.bullets import BulletsInput, load_bullets
 
 if TYPE_CHECKING:
     from avideo.models.config import RunConfig
@@ -94,6 +96,68 @@ _TOOL_DESCRIPTION = (
     "title, bullets, chart, diagram, quote, comparison, image_icon."
 )
 
+# SEED-002: Feedback block delimiter — appended to user prompt when feedback is present.
+_FEEDBACK_BLOCK = """\
+
+--- Instrucción del usuario (prioritaria) ---
+{feedback}
+--- Fin de instrucción ---
+"""
+
+
+# ---------------------------------------------------------------------------
+# Pure helpers
+# ---------------------------------------------------------------------------
+
+
+def _build_prompts(
+    bullets_input: BulletsInput,
+    context_text: str | None,
+    title: str,
+    duration: int | float,
+    language: str,
+    feedback: str | None = None,
+) -> tuple[str, str]:
+    """Build (system, user) prompts for the storyboard call.
+
+    Args:
+        bullets_input: Loaded BulletsInput with title and bullet list.
+        context_text:  Optional context text from the context checkpoint.
+        title:         Presentation title (from bullets_input.title typically).
+        duration:      Target duration in seconds.
+        language:      Output language code (e.g. ``"es"``).
+        feedback:      Optional free-text user instruction (SEED-002).  When
+                       non-None and non-empty, a delimited block is appended to
+                       the user prompt.  ``None`` produces identical output to
+                       the pre-SEED-002 behaviour (backward compatible).
+
+    Returns:
+        ``(system_prompt, user_prompt)`` tuple.
+    """
+    system = _SYSTEM_PROMPT.format(language=language)
+
+    bullets_list = "\n".join(f"- {b}" for b in bullets_input.bullets)
+    if context_text:
+        # T-02-06: context framed as untrusted reference material, not instructions
+        user = _USER_PROMPT_WITH_CONTEXT.format(
+            title=title,
+            duration=duration,
+            bullets_list=bullets_list,
+            context_text=context_text,
+        )
+    else:
+        user = _USER_PROMPT_NO_CONTEXT.format(
+            title=title,
+            duration=duration,
+            bullets_list=bullets_list,
+        )
+
+    # SEED-002: append feedback block when present (consumed-once — cleared by run() after use)
+    if feedback:
+        user += _FEEDBACK_BLOCK.format(feedback=feedback)
+
+    return system, user
+
 
 # ---------------------------------------------------------------------------
 # Stage
@@ -118,6 +182,10 @@ class StoryboardStage(CheckpointMixin):
     def run(self, workdir: "WorkdirManager", config: "RunConfig") -> StoryboardOutput:
         """Generate a storyboard from bullets + duration via the Anthropic API.
 
+        SEED-002: reads workdir.read_feedback("storyboard") before building prompts
+        and calls workdir.clear_feedback("storyboard") after a successful call_structured
+        (consumed-once lifecycle — stale feedback is never re-applied on resume).
+
         Args:
             workdir: WorkdirManager for reading the context checkpoint (if present).
             config: RunConfig with bullets path, duration, and language.
@@ -139,27 +207,20 @@ class StoryboardStage(CheckpointMixin):
             # No context checkpoint — proceed without (robustness guard for unit tests)
             pass
 
-        # Build system prompt with language
-        system = _SYSTEM_PROMPT.format(language=config.language)
+        # SEED-002: read optional user feedback (None when not present → backward compat)
+        feedback = workdir.read_feedback("storyboard")
 
-        # Build user prompt (with or without context)
-        bullets_list = "\n".join(f"- {b}" for b in bullets_input.bullets)
-        if context_text:
-            # T-02-06: context framed as untrusted reference material, not instructions
-            user = _USER_PROMPT_WITH_CONTEXT.format(
-                title=bullets_input.title,
-                duration=config.duration,
-                bullets_list=bullets_list,
-                context_text=context_text,
-            )
-        else:
-            user = _USER_PROMPT_NO_CONTEXT.format(
-                title=bullets_input.title,
-                duration=config.duration,
-                bullets_list=bullets_list,
-            )
+        # Build prompts via extracted helper (supports feedback injection)
+        system, user = _build_prompts(
+            bullets_input=bullets_input,
+            context_text=context_text,
+            title=bullets_input.title,
+            duration=config.duration,
+            language=config.language,
+            feedback=feedback,
+        )
 
-        return call_structured(
+        result = call_structured(
             system=system,
             user=user,
             tool_name="emit_storyboard",
@@ -167,3 +228,8 @@ class StoryboardStage(CheckpointMixin):
             output_model=StoryboardOutput,
             max_tokens=8192,  # Ample for storyboard (Pitfall 7 / A3)
         )
+
+        # SEED-002: consumed-once — clear feedback after successful generation
+        workdir.clear_feedback("storyboard")
+
+        return result

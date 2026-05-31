@@ -103,6 +103,14 @@ _TOOL_DESCRIPTION = (
     "natural spoken prose calibrated to the word budget for that slide."
 )
 
+# SEED-002: Feedback block delimiter — appended to user prompt when feedback is present.
+_FEEDBACK_BLOCK = """\
+
+--- Instrucción del usuario (prioritaria) ---
+{feedback}
+--- Fin de instrucción ---
+"""
+
 
 # ---------------------------------------------------------------------------
 # Pure helpers
@@ -140,6 +148,7 @@ def _build_prompts(
     storyboard: StoryboardOutput,
     timings: TimingOutput,
     language: str,
+    feedback: str | None = None,
 ) -> tuple[str, str]:
     """Build (system, user) prompts for the whole-script call.
 
@@ -147,6 +156,10 @@ def _build_prompts(
         storyboard: StoryboardOutput with slide titles + bullets.
         timings: TimingOutput with per-slide word_budget.
         language: Target language code (e.g. "es", "en").
+        feedback: Optional free-text user instruction (SEED-002).  When
+                  non-None and non-empty, a delimited block is appended to
+                  the user prompt.  ``None`` produces identical output to the
+                  pre-SEED-002 behaviour (backward compatible).
 
     Returns:
         (system_prompt, user_prompt) strings.
@@ -173,6 +186,11 @@ def _build_prompts(
         total_seconds=int(total_seconds),
         slides_section="\n".join(slide_blocks),
     )
+
+    # SEED-002: append feedback block when present (consumed-once — cleared after use)
+    if feedback:
+        user += _FEEDBACK_BLOCK.format(feedback=feedback)
+
     return system, user
 
 
@@ -272,8 +290,11 @@ class ScriptwriterStage(CheckpointMixin):
         budgets = [t.word_budget for t in tm.slides]
         max_tok = _size_max_tokens(budgets)
 
-        # Step 2: Build prompts
-        system, user = _build_prompts(sb, tm, config.language)
+        # SEED-002: read optional user feedback before building prompts
+        feedback = workdir.read_feedback("scriptwriter")
+
+        # Step 2: Build prompts (feedback injected when present — backward compat otherwise)
+        system, user = _build_prompts(sb, tm, config.language, feedback=feedback)
 
         # Step 3: First call
         result: ScriptOutput = call_structured(
@@ -284,6 +305,11 @@ class ScriptwriterStage(CheckpointMixin):
             output_model=ScriptOutput,
             max_tokens=max_tok,
         )
+
+        # SEED-002: consumed-once — clear feedback after first successful call_structured
+        # (before the calibration retry check so a crash during retry still leaves
+        # feedback consumed — the retry uses the same prompts anyway)
+        workdir.clear_feedback("scriptwriter")
 
         # Step 4: ONE calibration retry if drift > 25% (D-10 — NO loop)
         if _max_drift(result, budgets) > 0.25:

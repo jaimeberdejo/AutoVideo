@@ -93,6 +93,14 @@ _THEME_TOOL_DESCRIPTION = (
     "type scale multiplier, margin and gap in pixels."
 )
 
+# SEED-002: Feedback block delimiter — appended to theme user prompt when feedback is present.
+_FEEDBACK_BLOCK = """\
+
+--- Instrucción del usuario (prioritaria) ---
+{feedback}
+--- Fin de instrucción ---
+"""
+
 
 # ---------------------------------------------------------------------------
 # Bundled font path (importlib.resources-compatible path for wheel/editable)
@@ -115,13 +123,23 @@ def _bundled_font_path() -> Path:
 # ---------------------------------------------------------------------------
 
 
-def resolve_theme(theme_path: Path, storyboard: StoryboardOutput) -> ThemeConfig:
+def resolve_theme(
+    theme_path: Path,
+    storyboard: StoryboardOutput,
+    feedback: str | None = None,
+) -> ThemeConfig:
     """Resolve the visual theme with precedence: existing file > AI-generated > DEFAULT_THEME.
 
     Idempotent (D-03): if theme_path already exists, load and return it without
     calling the API.  On first run (no theme.yaml), call the AI via call_structured
     and write the result to theme_path.  On any exception, fall back to DEFAULT_THEME
     and log a warning — the pipeline never aborts due to theme generation failure (D-01).
+
+    SEED-002: When *feedback* is provided, the caller must delete theme_path BEFORE
+    calling this function (SlidesAutoStage.run() handles this) so that the idempotency
+    check does not short-circuit and a fresh theme is always generated.  The feedback
+    text is appended as a delimited block to the user prompt.  ``feedback=None``
+    produces identical behaviour to the pre-SEED-002 code (backward compatible).
 
     T-03-05: Storyboard text is injected as an UNTRUSTED REFERENCE in the user prompt,
     never as instructions. Forced tool-use (emit_theme) with ThemeConfig JSON schema
@@ -130,6 +148,7 @@ def resolve_theme(theme_path: Path, storyboard: StoryboardOutput) -> ThemeConfig
     Args:
         theme_path: Path where theme.yaml should be read from or written to.
         storyboard: StoryboardOutput — used to summarise slide content for the AI.
+        feedback:   Optional free-text user instruction (SEED-002).
 
     Returns:
         A validated ThemeConfig instance.
@@ -159,6 +178,10 @@ def resolve_theme(theme_path: Path, storyboard: StoryboardOutput) -> ThemeConfig
         num_slides=len(storyboard.slides),
         slide_summary=slide_summary,
     )
+
+    # SEED-002: append feedback block when present
+    if feedback:
+        user += _FEEDBACK_BLOCK.format(feedback=feedback)
 
     try:
         theme = call_structured(
@@ -239,8 +262,19 @@ class SlidesAutoStage(CheckpointMixin):
             "storyboard", StoryboardOutput
         )
 
-        # 2. Resolve theme (D-01/D-03)
-        theme = resolve_theme(self._theme_path, storyboard)
+        # SEED-002: read optional user feedback for the theme generation step
+        feedback = workdir.read_feedback("slides")
+
+        # SEED-002: when feedback is present, delete theme.yaml to bypass idempotency
+        # check in resolve_theme — the user explicitly requested a new theme
+        if feedback and self._theme_path.exists():
+            self._theme_path.unlink()
+
+        # 2. Resolve theme (D-01/D-03; feedback forwarded for SEED-002 variation)
+        theme = resolve_theme(self._theme_path, storyboard, feedback=feedback)
+
+        # SEED-002: consumed-once — clear feedback after successful theme resolution
+        workdir.clear_feedback("slides")
 
         # 3. Build Jinja2 environment (PackageLoader against avideo.templates package)
         env = self._build_jinja_env(theme)
