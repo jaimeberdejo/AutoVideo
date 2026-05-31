@@ -30,6 +30,27 @@ from avideo.stages.bullets_gen import (
 from avideo.utils.workdir import WorkdirManager
 
 
+def clean_bullet_rows(rows: list[dict]) -> list[str]:
+    """Extract non-empty, stripped bullet strings from st.data_editor rows.
+
+    st.data_editor with ``num_rows="dynamic"`` yields rows whose ``"bullet"``
+    value is ``None`` (not ``""``) for blank or never-edited cells, so a plain
+    ``row.get("bullet", "")`` returns ``None`` (the key exists) and ``.strip()``
+    raises ``AttributeError``. This helper is null-safe via ``or ""``.
+
+    Args:
+        rows: The list of row dicts returned by ``st.data_editor``.
+
+    Returns:
+        Ordered list of non-empty, stripped bullet strings.
+    """
+    return [
+        (r.get("bullet") or "").strip()
+        for r in rows
+        if (r.get("bullet") or "").strip()
+    ]
+
+
 def render(workdir: WorkdirManager) -> bool:
     """Render Phase 1 (Contenido) body.
 
@@ -130,9 +151,7 @@ def render(workdir: WorkdirManager) -> bool:
             r["bullet"] for r in edited if r.get("bullet")
         ]
 
-    approved_bullets: list[str] = [
-        r["bullet"].strip() for r in edited if r.get("bullet", "").strip()
-    ]
+    approved_bullets: list[str] = clean_bullet_rows(edited)
 
     # -----------------------------------------------------------------------
     # SECTION 5 — Gate + Aprobar button (CNT-01 / CNT-03)
