@@ -17,7 +17,13 @@ import streamlit as st
 
 from avideo.models.config import RunConfig
 from avideo.models.script import ScriptOutput, SlideScript
-from avideo.ui.bridge import RunStatus, get_error, run_stage, stage_status
+from avideo.ui.bridge import (
+    RunStatus,
+    get_error,
+    run_stage,
+    stage_elapsed,
+    stage_status,
+)
 from avideo.utils.workdir import WorkdirManager
 
 
@@ -63,11 +69,8 @@ def render(workdir: WorkdirManager) -> bool:
         else:
             run_stage(__import__("avideo.stages.scriptwriter", fromlist=["ScriptwriterStage"]).ScriptwriterStage(), workdir, config)
 
-        # Show per-stage progress
-        _show_pipeline_progress(workdir)
-
-        # Poll until scriptwriter done, then trigger a full rerun
-        _poll_script_generation(workdir)
+        # Live per-stage progress + stage chaining in one polling fragment.
+        _pipeline_progress_and_poll(workdir)
 
         # Gate not yet met
         return False
@@ -144,41 +147,53 @@ def render(workdir: WorkdirManager) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def _show_pipeline_progress(workdir: WorkdirManager) -> None:
-    """Render a st.status box with the current per-stage status."""
-    s_storyboard = stage_status("storyboard", workdir)
-    s_timing = stage_status("timing", workdir)
-    s_script = stage_status("scriptwriter", workdir)
-
-    all_done = s_script == RunStatus.DONE
-    box_state = "complete" if all_done else "running"
-
-    with st.status("Generando guion...", expanded=True, state=box_state):
-        for stage_name, label, s in [
-            ("storyboard", "Storyboard", s_storyboard),
-            ("timing", "Timing", s_timing),
-            ("scriptwriter", "Guion", s_script),
-        ]:
-            if s == RunStatus.DONE:
-                st.write(f"Listo: {label}")
-            elif s == RunStatus.RUNNING:
-                st.write(f"Generando {label}...")
-            elif s == RunStatus.ERROR:
-                err = get_error(stage_name)
-                st.write(f"Error en {label}: {err}")
-            else:
-                st.write(f"Pendiente: {label}")
+_PIPELINE_STAGES = [
+    ("storyboard", "Storyboard"),
+    ("timing", "Timing"),
+    ("scriptwriter", "Guion"),
+]
 
 
 @st.fragment(run_every="2s")
-def _poll_script_generation(workdir: WorkdirManager) -> None:
-    """Poll scriptwriter status every 2 s; trigger full rerun once done or on error."""
-    s = stage_status("scriptwriter", workdir)
-    if s == RunStatus.DONE:
-        st.rerun()
-    elif s == RunStatus.ERROR:
-        err = get_error("scriptwriter")
-        st.error(f"Error generando guion: {err}")
+def _pipeline_progress_and_poll(workdir: WorkdirManager) -> None:
+    """Render live per-stage progress AND drive stage chaining.
+
+    Runs every 2 s. Shows each stage with elapsed time, then triggers a FULL
+    app rerun (st.rerun) whenever the pipeline advances — i.e. when no stage is
+    currently running but the script is not done yet (so render() launches the
+    next pending stage), or when the script is done (so render() shows the
+    editor). On any stage error it surfaces the message and stops (no rerun, so
+    render() does not re-launch the failed stage in a loop).
+    """
+    statuses = {name: stage_status(name, workdir) for name, _ in _PIPELINE_STAGES}
+    has_error = any(s == RunStatus.ERROR for s in statuses.values())
+    all_done = statuses["scriptwriter"] == RunStatus.DONE
+    box_state = "error" if has_error else ("complete" if all_done else "running")
+
+    with st.status("Generando guion...", expanded=True, state=box_state):
+        for stage_name, label in _PIPELINE_STAGES:
+            s = statuses[stage_name]
+            if s == RunStatus.DONE:
+                st.write(f"✅ {label}")
+            elif s == RunStatus.RUNNING:
+                elapsed = stage_elapsed(stage_name)
+                suffix = f" ({elapsed:.0f}s)" if elapsed is not None else ""
+                st.write(f"⏳ Generando {label}...{suffix}")
+            elif s == RunStatus.ERROR:
+                st.write(f"❌ Error en {label}: {get_error(stage_name)}")
+            else:
+                st.write(f"⏸ Pendiente: {label}")
+
+    if has_error:
+        return  # stop polling; do not re-launch the failed stage
+    if all_done:
+        st.rerun()  # full app rerun → render() shows the editor
+        return
+    # Chain still advancing: if nothing is running, the previous stage finished
+    # and the next pending one must be launched by a full page rerun.
+    running = any(s == RunStatus.RUNNING for s in statuses.values())
+    if not running:
+        st.rerun()  # full app rerun → render() launches the next pending stage
 
 
 def _save_edited_script(workdir: WorkdirManager, base_script: ScriptOutput) -> None:
