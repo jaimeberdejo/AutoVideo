@@ -41,6 +41,46 @@
 
 ---
 
+## Milestone: v2.0.0 — Studio Guiado
+
+**Shipped:** 2026-07-01
+**Phases:** 6 (8–13) | **Plans:** 23 | **Commits:** 107 · 206 files changed · +23,813/-1,093 LOC
+
+### What Was Built
+- `avideo studio` — wizard Streamlit de 6 fases (Contenido, Guion, Diapositivas, Voz, Extras, Ensamblaje) sobre el pipeline existente como motor headless, con gate de aprobación humana obligatorio entre fases y `invalidate_downstream` al editar/regenerar aguas arriba.
+- Estado reconstruido desde `workdir/*.json` (no `session_state`) — sobrevive a refrescos/cierres del navegador; etapas largas corren vía `PipelineBridge` (hilo daemon + polling) sin bloquear la UI.
+- OpenAI Audio como tercer proveedor de voz (round-trip STT `whisper-1` para timestamps), mejora de audio no destructiva (denoise+loudnorm con preview antes/después), música de fondo (ducking+fade, loudnorm de una sola pasada), y verificador Claude Vision para slides subidas por el usuario.
+- SEED-002: variación dirigida por feedback de texto en guion/storyboard/slides (en vez de "regenerar a ciegas").
+- Suite de tests: 303 → 456 (incluye smoke tests de páginas y 5 tests E2E opcionales de navegador real).
+
+### What Worked
+- **Auditoría de milestone con `human_needed` explícito en vez de forzar un veredicto prematuro:** 5/6 fases quedaron marcadas `human_needed` tras la auditoría de código, dejando claro que faltaba una verificación real en navegador antes de poder cerrar — evitó dar por bueno algo no probado.
+- **Sesión de UAT real en navegador (Chrome MCP + Playwright, APIs reales, FFmpeg real) antes de cerrar el milestone:** encontró 3 bugs bloqueantes que ningún test mockeado había atrapado (pérdida de contexto de tema en retry del guionista, nombre de fichero temporal de FFmpeg rompiendo autodetección de formato, `run_config` no sobrevivía a un refresco) — confirma que los mocks no sustituyen una pasada real end-to-end para una UI stateful.
+- **`invalidate_downstream` como único punto de invalidación:** centralizar la lógica de "qué checkpoints quedan obsoletos" en un método de `WorkdirManager` evitó lógica de invalidación duplicada/inconsistente en cada página.
+
+### What Was Inefficient
+- **El roadmap mezcló ideas nuevas (Pexels/SEED-001) con el alcance auditado**, obligando a retirarlas explícitamente del roadmap (2026-05-29) y aparcarlas en una rama separada (`feature/pexels-slides`) para no contaminar el REQUIREMENTS.md ya en auditoría — mismo patrón de inefficiency que v1.60.0, aún sin resolver estructuralmente.
+- **Rutas secundarias de la UI (subida de audio propio + mejora, subida de slides + QC, subida de música) no se ejercitaron en la sesión de UAT real** — se priorizó el camino feliz (OpenAI TTS + auto-slides) para llegar a un vídeo completo dentro del presupuesto de contexto disponible; quedan como deuda de verificación, no de implementación.
+- **Auditoría de integración con sweep parcial** (varios requirement chains no se re-trazaron individualmente por límite de contexto) — aceptado como riesgo bajo pero es la segunda vez que un pase de auditoría se corta por presupuesto en vez de por alcance real.
+
+### Patterns Established
+- **Wizard gate pattern:** cada página de fase implementa `render(workdir) -> bool`; solo avanza si el usuario aprueba explícitamente.
+- **Bridge + polling para etapas largas:** `PipelineBridge` lanza un hilo daemon, la página hace polling de `RunStatus` sin bloquear Streamlit.
+- **Reconstrucción de estado 100% desde disco:** `session_state` nunca es la fuente de verdad de progreso — solo cachea workdir/fase actual.
+- **Mejora de contenido no destructiva con preview antes/después** (audio, y por extensión cualquier transformación futura de un asset ya aprobado).
+- **Feedback de texto dirigido en vez de "regenerar y cruzar los dedos"** (SEED-002) — patrón reutilizable para cualquier etapa que dependa de un LLM.
+
+### Key Lessons
+1. **Una auditoría de código no sustituye una verificación real en navegador para una app stateful con checkpoints** — los 3 bugs bloqueantes de esta milestone solo aparecieron con APIs reales y un navegador real; reservar tiempo/presupuesto explícito para esa pasada antes de intentar cerrar.
+2. **Cuando surja una idea nueva a mitad de milestone, sacarla del roadmap activo de inmediato (rama separada + nota en Out of Scope)** en vez de dejarla flotando hasta el cierre — ya pasó en v1.60.0 y v2.0.0.
+3. **Las rutas secundarias de una UI multi-modo (proveedor B, C, D) necesitan su propio checklist de UAT explícito** — el camino feliz no las cubre gratis y quedan como deuda silenciosa si no se listan aparte.
+
+### Cost Observations
+- Model mix: Opus para planificación/fixes, Sonnet para ejecución (perfil `balanced`, modo `yolo`) — sin cambios respecto a v1.60.0.
+- Notable: la mayor parte del trabajo de implementación (fases 8–13) se completó en una sesión (2026-05-29); la UAT real en navegador y el cierre de auditoría se hicieron en una sesión separada un mes después (2026-07-01), lo que dejó STATE.md con handoffs explícitos entre sesiones — patrón útil a repetir cuando la verificación real requiere una sesión dedicada de navegador.
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -48,13 +88,16 @@
 | Milestone | Phases | Plans | Key Change |
 |-----------|--------|-------|------------|
 | v1.60.0 | 7 | 18 | Baseline: pipeline secuencial stub-first con plan-check + code-review por fase |
+| v2.0.0 | 6 | 23 | UI Streamlit sobre el pipeline existente; auditoría con veredicto `human_needed` explícito hasta UAT real en navegador con APIs/FFmpeg reales |
 
 ### Cumulative Quality
 
 | Milestone | Tests | External calls in tests | Zero-Dep Additions |
 |-----------|-------|-------------------------|--------------------|
 | v1.60.0 | 303 passing | 0 (todo mockeado) | — |
+| v2.0.0 | 456 passing | 5 tests E2E opcionales (`AVIDEO_E2E=1`) con navegador/APIs reales | Streamlit, openai SDK |
 
 ### Top Lessons (Verified Across Milestones)
 
-1. (Pendiente de validación cruzada en el próximo milestone.)
+1. **Ideas nuevas a mitad de milestone deben salir del roadmap activo de inmediato** (rama separada + nota explícita en Out of Scope) — observado en v1.60.0 (Phases 8–9 retiradas) y v2.0.0 (SEED-001/Pexels retirado a `feature/pexels-slides`).
+2. **Auditorías de código no sustituyen verificación real cuando hay estado persistente y APIs externas de verdad** — confirmado en v2.0.0: 3 bugs bloqueantes solo visibles en una sesión de UAT real en navegador.
