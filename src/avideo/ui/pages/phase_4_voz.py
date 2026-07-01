@@ -154,6 +154,7 @@ def _render_synthesis(workdir: WorkdirManager, config: object, n_slides: int) ->
     if st.button("Generar voz", key="btn_gen_voice", disabled=btn_disabled):
         from avideo.ui.pipeline_ops import rerun_voice  # noqa: PLC0415
 
+        st.session_state.pop("_voice_error_rerun_done", None)
         rerun_voice(workdir, config)
         st.rerun()
 
@@ -164,13 +165,24 @@ def _render_synthesis(workdir: WorkdirManager, config: object, n_slides: int) ->
 
         @st.fragment(run_every="2s")
         def _poll_voice() -> None:
-            from avideo.ui.bridge import RunStatus, get_error, stage_status  # noqa: PLC0415
+            from avideo.ui.bridge import RunStatus, format_stage_error, stage_status  # noqa: PLC0415
 
             sv = stage_status("voice", workdir)
             if sv == RunStatus.ERROR:
-                st.error(f"Error en síntesis: {get_error('voice')}")
-            elif sv in (RunStatus.RUNNING, RunStatus.IDLE):
+                st.error(f"Error en síntesis: {format_stage_error('voice')}")
+                # The "Generar voz" button's disabled= value above was computed
+                # at the last full-script rerun (when the thread was RUNNING),
+                # and this fragment alone can't update it — without forcing one
+                # more full rerun, the button stays stuck disabled forever with
+                # no way to retry. Rerun exactly once per error (guarded by a
+                # session flag, cleared on the next click) to avoid looping.
+                if not st.session_state.get("_voice_error_rerun_done"):
+                    st.session_state["_voice_error_rerun_done"] = True
+                    st.rerun()
+            elif sv == RunStatus.RUNNING:
                 st.info("Sintetizando voz...")
+            elif sv == RunStatus.IDLE:
+                st.info("Pulsa 'Generar voz' para comenzar la síntesis.")
             elif sv == RunStatus.DONE:
                 st.rerun()  # exit fragment loop; show audio previews below
 
@@ -197,9 +209,9 @@ def _render_synthesis(workdir: WorkdirManager, config: object, n_slides: int) ->
             if sa == RunStatus.DONE:
                 st.rerun()
             elif sa == RunStatus.ERROR:
-                from avideo.ui.bridge import get_error  # noqa: PLC0415
+                from avideo.ui.bridge import format_stage_error  # noqa: PLC0415
 
-                st.error(f"Error en alineación: {get_error('align')}")
+                st.error(f"Error en alineación: {format_stage_error('align')}")
             else:
                 st.info("Preparando timestamps de alineación...")
 
@@ -357,11 +369,11 @@ def _render_record(workdir: WorkdirManager, config: object, n_slides: int) -> bo
 
             @st.fragment(run_every="2s")
             def _poll_align() -> None:
-                from avideo.ui.bridge import RunStatus, get_error, stage_status  # noqa: PLC0415
+                from avideo.ui.bridge import RunStatus, format_stage_error, stage_status  # noqa: PLC0415
 
                 sa = stage_status("align", workdir)
                 if sa == RunStatus.ERROR:
-                    st.error(f"Error en alineación: {get_error('align')}")
+                    st.error(f"Error en alineación: {format_stage_error('align')}")
                 elif sa in (RunStatus.RUNNING, RunStatus.IDLE):
                     st.info("Generando alineación y timestamps...")
                 elif sa == RunStatus.DONE:

@@ -63,14 +63,14 @@ def _fake_run_ffmpeg_factory():
     def _fake(args):
         idx = call_count[0]
         call_count[0] += 1
-        if idx == 0:  # assembly encode → create output.mp4.tmp
+        if idx == 0:  # assembly encode → create output.tmp.mp4
             out = Path(args[-1])
             out.parent.mkdir(parents=True, exist_ok=True)
             out.write_bytes(b"fake mp4")
             return types.SimpleNamespace(returncode=0, stdout="", stderr="")
         elif idx == 1:  # loudnorm pass-1 → return canned stderr
             return types.SimpleNamespace(returncode=0, stdout="", stderr=_CANNED_LOUDNORM_PASS1)
-        else:  # loudnorm pass-2 → create output.mp4.norm.tmp
+        else:  # loudnorm pass-2 → create output.norm.tmp.mp4
             out = Path(args[-1])
             out.parent.mkdir(parents=True, exist_ok=True)
             out.write_bytes(b"fake normalised mp4")

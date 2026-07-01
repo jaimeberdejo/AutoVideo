@@ -221,6 +221,52 @@ def test_calibration_threshold_boundary() -> None:
     )
 
 
+def test_calibration_retry_prompt_includes_original_slide_content() -> None:
+    """Regression test (v2.0.0 browser UAT finding): the correction retry call
+    must re-include the original slide titles/bullets and the previous
+    narrations in its user prompt.
+
+    call_structured is a single-turn call (no conversation history threaded
+    through), so a correction prompt containing ONLY word-count notes strips
+    away all topic context — the model then has to invent unrelated filler
+    content to satisfy the word budgets. This was observed live: a 60s/6-slide
+    presentation about small-business carbon footprint tracking came back
+    from the retry as a 4-slide generic "innovation drives organizations"
+    script with no connection to the actual topic.
+    """
+    timing = _make_timing([30.0, 30.0, 30.0])
+    storyboard = _make_storyboard(3)
+    workdir = _make_workdir_for_scriptwriter(storyboard, timing)
+    config = _make_config()
+
+    off_budget_narrations = ["Muy corto.", "Muy corto.", "Muy corto."]
+    off_budget_script = _make_script_output(off_budget_narrations)
+    corrected_script = _make_script_output(
+        [" ".join(["palabra"] * 75)] * 3
+    )
+
+    with patch("avideo.stages.scriptwriter.call_structured") as mock_call:
+        mock_call.side_effect = [off_budget_script, corrected_script]
+
+        from avideo.stages.scriptwriter import ScriptwriterStage
+        stage = ScriptwriterStage()
+        stage.run(workdir, config)
+
+    assert mock_call.call_count == 2
+    retry_kwargs = mock_call.call_args_list[1].kwargs
+    retry_user_prompt = retry_kwargs["user"]
+
+    # The original slide titles/bullets must be present so the model stays on-topic.
+    for slide in storyboard.slides:
+        assert slide.title in retry_user_prompt
+        for bullet in slide.bullets:
+            assert bullet in retry_user_prompt
+
+    # The previous (off-budget) narrations must also be present for continuity.
+    for narration in off_budget_narrations:
+        assert narration in retry_user_prompt
+
+
 # ---------------------------------------------------------------------------
 # SCRIPT-02 — language and output structure
 # ---------------------------------------------------------------------------

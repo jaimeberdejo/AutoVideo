@@ -35,15 +35,18 @@ def render(workdir: WorkdirManager) -> bool:
     rc_dict = dict(st.session_state.get("run_config", {}))
     if "bullets" not in rc_dict:
         rc_dict["bullets"] = workdir.root / "bullets.yaml"
-    if "duration" not in rc_dict:
-        rc_dict["duration"] = 60  # fallback; real value set in Phase 1
 
     from avideo.models.config import RunConfig  # noqa: PLC0415
 
     try:
         config = RunConfig(**rc_dict)
     except Exception as exc:  # noqa: BLE001
-        st.error(f"Error de configuración: {exc}")
+        # No silent fallback here: assembling against a made-up duration would
+        # produce a wrong-length video with no indication anything was off.
+        st.error(
+            f"Error de configuración: {exc}\n\n"
+            "Vuelve a la Fase 1 y aprueba de nuevo el tema/duración."
+        )
         return False
 
     # ------------------------------------------------------------------
@@ -80,6 +83,7 @@ def render(workdir: WorkdirManager) -> bool:
 
         workdir.done_marker("assemble").unlink(missing_ok=True)
         workdir.invalidate_downstream("assemble")
+        st.session_state.pop("_assemble_error_rerun_done", None)
         _run_stage(AssembleStage(), workdir, config)
         st.rerun()
 
@@ -90,14 +94,22 @@ def render(workdir: WorkdirManager) -> bool:
 
         @st.fragment(run_every="2s")
         def _poll_assemble() -> None:
-            from avideo.ui.bridge import RunStatus, get_error, stage_status  # noqa: PLC0415
+            from avideo.ui.bridge import RunStatus, format_stage_error, stage_status  # noqa: PLC0415
 
             sa = stage_status("assemble", workdir)
             if sa == RunStatus.ERROR:
-                st.error(f"Error en el montaje: {get_error('assemble')}")
-            elif sa in (RunStatus.RUNNING, RunStatus.IDLE):
+                st.error(f"Error en el montaje: {format_stage_error('assemble')}")
+                # Same fix as phase_4_voz.py: "Montar vídeo"'s disabled= value
+                # was frozen at the last full rerun (while RUNNING) — force one
+                # more full rerun so the button re-enables for a retry.
+                if not st.session_state.get("_assemble_error_rerun_done"):
+                    st.session_state["_assemble_error_rerun_done"] = True
+                    st.rerun()
+            elif sa == RunStatus.RUNNING:
                 with st.status("Montando vídeo...", expanded=True):
                     st.info("FFmpeg está procesando. La UI seguirá respondiendo.")
+            elif sa == RunStatus.IDLE:
+                st.info("Pulsa 'Montar vídeo' para comenzar el ensamblaje.")
             elif sa == RunStatus.DONE:
                 st.rerun()
 

@@ -11,10 +11,26 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from pydantic import BaseModel, ValidationError
+
 from avideo.utils.workdir import WorkdirManager
 
 if TYPE_CHECKING:
     pass  # st imported lazily inside functions to allow unit-testing without streamlit
+
+
+class UIRunConfig(BaseModel):
+    """Minimal persisted subset of session_state["run_config"].
+
+    Written by phase_1_contenido.py on bullets approval, alongside the
+    "context" checkpoint. Rehydrated on every fresh session (browser refresh
+    or app restart) so RunConfig(**run_config) doesn't fail with a missing
+    "duration" field once the wizard has moved past Phase 1 — session_state
+    itself does not survive a refresh, only workdir does.
+    """
+
+    topic: str
+    duration: float
 
 #: Six wizard phases: (phase_number, display_name)
 PHASES: list[tuple[int, str]] = [
@@ -74,6 +90,27 @@ def init_session_state() -> None:
         st.session_state["workdir_path"] = None
     if "run_config" not in st.session_state:
         st.session_state["run_config"] = {}
+
+
+def rehydrate_run_config(workdir: WorkdirManager) -> dict:
+    """Read the persisted "ui_run_config" checkpoint back into a dict.
+
+    Returns an empty dict if the checkpoint doesn't exist yet (e.g. a brand
+    new workdir, or a workdir created before this checkpoint existed) — the
+    caller merges this into session_state["run_config"] without clobbering
+    any keys already set in the current session.
+
+    Args:
+        workdir: Active WorkdirManager for the current run.
+
+    Returns:
+        dict with "topic"/"duration" keys, or {} if not yet persisted.
+    """
+    try:
+        cfg = workdir.read_checkpoint("ui_run_config", UIRunConfig)
+    except (FileNotFoundError, ValidationError):
+        return {}
+    return cfg.model_dump()
 
 
 def advance_phase() -> None:

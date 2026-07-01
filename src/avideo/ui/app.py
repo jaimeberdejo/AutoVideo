@@ -24,6 +24,7 @@ from avideo.ui.state import (
     PHASES,
     advance_phase,
     init_session_state,
+    rehydrate_run_config,
     workdir_phase_from_done_markers,
 )
 from avideo.utils.workdir import WorkdirManager
@@ -89,6 +90,15 @@ def main() -> None:
     # (not on every rerun), allowing user navigation to take precedence thereafter.
     if not st.session_state.get("_phase_initialised"):
         st.session_state["phase"] = workdir_phase_from_done_markers(workdir)
+        # Rehydrate run_config (topic/duration) from workdir — session_state
+        # itself doesn't survive a browser refresh or app restart, only the
+        # workdir does. Without this, RunConfig(**run_config) raises a
+        # pydantic ValidationError ("duration Field required") on any phase
+        # past Phase 1 after a refresh.
+        st.session_state["run_config"] = {
+            **rehydrate_run_config(workdir),
+            **st.session_state.get("run_config", {}),
+        }
         st.session_state["_phase_initialised"] = True
 
     # ------------------------------------------------------------------
@@ -181,14 +191,18 @@ def main() -> None:
                 st.session_state["_confirm_back"] = False
                 st.rerun()
 
-    with col_next:
-        if st.button(
-            "Aprobar y continuar →",
-            disabled=not gate_met,
-            type="primary",
-            key="nav_next",
-        ):
-            advance_phase()
+    # On the last phase, "Aprobar y continuar" has nothing to advance to
+    # (advance_phase() is a no-op once phase == max phase) — Fase 6's own
+    # "Finalizar" button is the terminal action instead.
+    if current_phase < len(PHASES):
+        with col_next:
+            if st.button(
+                "Aprobar y continuar →",
+                disabled=not gate_met,
+                type="primary",
+                key="nav_next",
+            ):
+                advance_phase()
 
 
 # ---------------------------------------------------------------------------

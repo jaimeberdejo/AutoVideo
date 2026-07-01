@@ -21,6 +21,7 @@ import streamlit as st
 import yaml
 
 from avideo.models.bullets import BulletsInput
+from avideo.ui.state import UIRunConfig
 from avideo.stages.bullets_gen import (
     DURATION_MAX,
     DURATION_MIN,
@@ -63,9 +64,6 @@ def render(workdir: WorkdirManager) -> bool:
         True when the phase gate condition is met (bullets.yaml written and
         "context" done-marker is present).
     """
-    st.subheader("Fase 1 — Contenido")
-    st.caption("Define el tema, duración y los bullets de tu presentación.")
-
     # -----------------------------------------------------------------------
     # SECTION 1 — Topic + Duration inputs
     # -----------------------------------------------------------------------
@@ -97,6 +95,16 @@ def render(workdir: WorkdirManager) -> bool:
         validate_duration(duration_s)
     except ValueError as exc:
         st.error(f"Duración inválida: {exc}")
+        # A bare number below DURATION_MIN (no ":") is almost always a user
+        # typing minutes where seconds are parsed — e.g. "4" becomes 4s, not
+        # 4 minutes. Nudge toward the mm:ss form instead of leaving the user
+        # to guess why a seemingly reasonable number was rejected.
+        stripped = duration_text.strip()
+        if stripped.isdigit() and ":" not in stripped and int(stripped) < DURATION_MIN:
+            st.caption(
+                f"¿Querías decir {stripped}:00 ({stripped} minutos)? "
+                f"Usa el formato mm:ss — un número suelto se interpreta como segundos."
+            )
         return False
 
     st.caption(f"Duración: {format_duration(duration_s)} ({duration_s} s)")
@@ -211,6 +219,13 @@ def render(workdir: WorkdirManager) -> bool:
             rc["topic"] = topic.strip()
             rc["duration"] = duration_s
             st.session_state["run_config"] = rc
+
+            # Persist topic/duration to workdir too — session_state does not
+            # survive a browser refresh or app restart; see ui/state.py
+            # rehydrate_run_config().
+            workdir.write_checkpoint(
+                "ui_run_config", UIRunConfig(topic=topic.strip(), duration=duration_s)
+            )
 
             gate_met = True
             st.success("Bullets aprobados. Puedes continuar al guion.")

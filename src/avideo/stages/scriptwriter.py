@@ -87,9 +87,18 @@ Bullets:
 """
 
 _CORRECTION_PROMPT_TEMPLATE = """\
+Presentación: {n_slides} slides, duración total ≈ {total_seconds}s
+
+{slides_section}
+
+Guion anterior (para tu referencia — mantén el contenido y el tono, solo \
+ajusta la longitud donde se indique):
+{prev_narrations}
+
 El guion anterior no cumple con los presupuestos de palabras en algunas slides. \
 Por favor, ajusta SOLO la longitud de las narraciones fuera de rango y devuelve \
-el guion completo de nuevo.
+el guion COMPLETO de nuevo (las {n_slides} slides, no solo las corregidas), \
+manteniendo el mismo contenido y sin inventar temas nuevos.
 
 Revisión necesaria:
 {slide_notes}
@@ -195,12 +204,24 @@ def _build_prompts(
 
 
 def _correction_prompt(
+    storyboard: StoryboardOutput,
+    timings: TimingOutput,
     prev_script: ScriptOutput,
     budgets: list[int],
 ) -> str:
     """Build the correction prompt highlighting off-budget slides.
 
+    The correction call is a fresh, single-turn ``call_structured`` invocation
+    (no conversation history is threaded through) — so this prompt must be
+    fully self-contained. It re-includes the original slide titles/bullets
+    AND the previous narrations; omitting them causes the model to lose all
+    topic context and hallucinate an unrelated generic script (observed live
+    during v2.0.0 browser UAT: a 60s/6-slide carbon-footprint presentation
+    came back as a 4-slide generic "innovation" script after the retry).
+
     Args:
+        storyboard: StoryboardOutput with slide titles + bullets (for re-grounding).
+        timings: TimingOutput with per-slide word_budget.
         prev_script: The previous ScriptOutput to correct.
         budgets: Per-slide word budgets.
 
@@ -223,7 +244,26 @@ def _correction_prompt(
     if not notes:
         notes.append("  (todas las slides son correctas — devuelve el mismo guion)")
 
-    return _CORRECTION_PROMPT_TEMPLATE.format(slide_notes="\n".join(notes))
+    budget_map = {t.slide_index: t.word_budget for t in timings.slides}
+    slide_blocks: list[str] = []
+    for i, slide in enumerate(storyboard.slides):
+        budget = budget_map.get(i, 0)
+        bullets_list = "\n".join(f"  - {b}" for b in slide.bullets)
+        slide_blocks.append(
+            _SLIDE_BLOCK_TEMPLATE.format(idx=i, budget=budget, title=slide.title, bullets_list=bullets_list)
+        )
+
+    prev_narrations = "\n".join(
+        f"  Slide {s.slide_index}: {s.narration}" for s in prev_script.slides
+    )
+
+    return _CORRECTION_PROMPT_TEMPLATE.format(
+        n_slides=len(storyboard.slides),
+        total_seconds=int(timings.total_seconds),
+        slides_section="\n".join(slide_blocks),
+        prev_narrations=prev_narrations,
+        slide_notes="\n".join(notes),
+    )
 
 
 def _size_max_tokens(budgets: list[int]) -> int:
@@ -313,7 +353,7 @@ class ScriptwriterStage(CheckpointMixin):
 
         # Step 4: ONE calibration retry if drift > 25% (D-10 — NO loop)
         if _max_drift(result, budgets) > 0.25:
-            correction_user = _correction_prompt(result, budgets)
+            correction_user = _correction_prompt(sb, tm, result, budgets)
             result = call_structured(
                 system=system,
                 user=correction_user,

@@ -49,8 +49,6 @@ def render(workdir: WorkdirManager) -> bool:
     Returns:
         True once the user clicks "Aprobar guion" (scriptwriter done-marker present).
     """
-    st.header("Fase 2 — Guion")
-
     storyboard_done = workdir.is_done("storyboard")
     timing_done = workdir.is_done("timing")
     script_done = workdir.is_done("scriptwriter")

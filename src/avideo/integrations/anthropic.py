@@ -29,11 +29,14 @@ from avideo.utils.image_utils import MEDIA_TYPE, downscale_png_for_api
 # Constants
 # ---------------------------------------------------------------------------
 
-#: Current model ID. Change here to update both storyboard and scriptwriter.
-#: VERIFIED against platform.claude.com 2026-05-25: claude-sonnet-4-6 is the
-#: pinned dateless snapshot ($3/$15 per MTok, 1M ctx, 64k output).
-#: Do NOT use claude-sonnet-4-20250514 — deprecated, retires 2026-06-15.
-MODEL: str = "claude-sonnet-4-6"
+#: Current model ID. Change here to update storyboard, scriptwriter, AND the
+#: vision-based slide verifier (Phase 6) — all three route through call_structured
+#: / call_structured_with_images in this module, which both read MODEL.
+#: claude-haiku-4-5-20251001 supports vision, so the verifier's image calls work
+#: unchanged. Chosen over claude-sonnet-4-6 for cost — none of these three tasks
+#: (structured JSON generation, narration writing, ok/warning/fail slide QC)
+#: need Sonnet-tier reasoning.
+MODEL: str = "claude-haiku-4-5-20251001"
 
 # ---------------------------------------------------------------------------
 # Generic type variable for the output model

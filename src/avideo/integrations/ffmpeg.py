@@ -443,6 +443,12 @@ def parse_loudnorm_json(stderr: str) -> dict[str, float]:
         "measured_thresh": float(raw["input_thresh"]),
         "offset": float(raw["target_offset"]),
         "input_i": measured_i,  # convenience alias for measured_lufs in QA sub-step
+        # output_i is the ACTUAL resulting loudness after normalization is applied
+        # (present on both pass-1 measure and pass-2 apply runs). Callers computing
+        # a post-normalization "normalized_lufs" QA metric must read this field, not
+        # "input_i" — input_i is always the pre-normalization value, even when
+        # parsing a pass-2 (apply) run's JSON block.
+        "output_i": float(raw["output_i"]),
     }
 
 

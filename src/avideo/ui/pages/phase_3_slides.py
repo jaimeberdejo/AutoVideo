@@ -183,30 +183,14 @@ def _render_auto(workdir: WorkdirManager, config: object) -> bool:
     # ------------------------------------------------------------------
     # SLD-02: Variation widget (SEED-002 — steerable variation)
     # ------------------------------------------------------------------
-    st.markdown("**Pedir variación de diapositivas**")
-    slides_variation_target = st.radio(
-        "¿Qué quieres cambiar?",
-        options=[
-            "Estilo visual / colores",
-            "Añadir imágenes (próximamente — SEED-001)",
-        ],
-        key="sld_variation_target",
-        horizontal=True,
-    )
+    st.markdown("**Pedir variación de diapositivas (estilo visual / colores)**")
     slides_variation_text = st.text_area(
         "Instrucción (opcional)",
         key="sld_variation_text",
         placeholder='Ej: "esquema de color azul" / "más contraste en los títulos"',
         height=80,
     )
-    is_pexels_option = slides_variation_target.startswith("Añadir imágenes")
-    if is_pexels_option:
-        st.info("La opción 'Añadir imágenes' estará disponible en SEED-001.")
-    if st.button(
-        "Aplicar variación",
-        key="btn_slides_variation",
-        disabled=is_pexels_option,
-    ):
+    if st.button("Aplicar variación", key="btn_slides_variation"):
         from avideo.ui.pipeline_ops import rerun_with_feedback  # noqa: PLC0415
 
         rerun_with_feedback(workdir, config, "slides", slides_variation_text.strip())

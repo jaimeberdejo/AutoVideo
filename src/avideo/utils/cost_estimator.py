@@ -8,7 +8,8 @@ Design:
 - Reads bullets.yaml via load_bullets() for the real bullet count (file I/O is
   acceptable; still no network and runs before any workdir exists).
 - Falls back gracefully (bullet count = 0 + Rich warning) if bullets.yaml is missing.
-- Pricing constants for Claude claude-sonnet-4-6: $3/MTok input, $15/MTok output (D-15).
+- Pricing constants match avideo.integrations.anthropic.MODEL (D-15) — currently
+  claude-haiku-4-5: $1/MTok input, $5/MTok output. Update both together if MODEL changes.
 
 Heuristics (documented for SUMMARY):
   Storyboard:
@@ -38,11 +39,12 @@ if TYPE_CHECKING:
 
 
 # ---------------------------------------------------------------------------
-# Pricing constants — Claude claude-sonnet-4-6 (verified 2026-05-25)
+# Pricing constants — Claude Haiku 4.5 (verified 2026-07-01, platform.claude.com)
+# Must track avideo.integrations.anthropic.MODEL — update both together.
 # ---------------------------------------------------------------------------
 
-INPUT_USD_PER_MTOK: float = 3.0   # $3.00 per million input tokens
-OUTPUT_USD_PER_MTOK: float = 15.0  # $15.00 per million output tokens
+INPUT_USD_PER_MTOK: float = 1.0   # $1.00 per million input tokens
+OUTPUT_USD_PER_MTOK: float = 5.0  # $5.00 per million output tokens
 
 
 # ---------------------------------------------------------------------------
@@ -200,6 +202,8 @@ def estimate_all(config: "RunConfig") -> None:
     total_out = sb_out + sc_out + th_out
     total_usd = sb_usd + sc_usd + th_usd
 
+    from avideo.integrations.anthropic import MODEL  # noqa: PLC0415 — avoid import cost when unused
+
     # Build Rich table
     table = Table(
         "Stage",
@@ -208,7 +212,7 @@ def estimate_all(config: "RunConfig") -> None:
         "Est. cost (USD)",
         title=(
             f"[bold cyan]Dry-Run Cost Estimate[/bold cyan] "
-            f"({num_bullets} bullets · {duration}s · claude-sonnet-4-6)"
+            f"({num_bullets} bullets · {duration}s · {MODEL})"
         ),
         border_style="cyan",
         show_footer=False,
@@ -252,6 +256,7 @@ def estimate_all(config: "RunConfig") -> None:
 
     console.print(table)
     console.print(
-        f"[dim]Heuristic estimate — $3/MTok in + $15/MTok out (claude-sonnet-4-6). "
+        f"[dim]Heuristic estimate — ${INPUT_USD_PER_MTOK:.0f}/MTok in + "
+        f"${OUTPUT_USD_PER_MTOK:.0f}/MTok out ({MODEL}). "
         f"Actual costs depend on prompt length and Claude's output verbosity.[/dim]"
     )

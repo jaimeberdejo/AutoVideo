@@ -113,6 +113,36 @@ def get_error(stage_name: str) -> Exception | None:
     return _errors.get(stage_name)
 
 
+def format_stage_error(stage_name: str) -> str:
+    """Return a user-facing message for the stored error, or "" if none.
+
+    SDK exceptions (ElevenLabs/OpenAI/Anthropic ApiError-style classes) stringify
+    to a huge dump of raw HTTP headers + status_code + body — not something a
+    user should see. When the exception carries a ``body`` dict shaped like
+    ``{"detail": {"message": "..."}}`` (ElevenLabs' format) or a top-level
+    ``"message"`` key, surface just that human-readable message instead.
+
+    Args:
+        stage_name: Stage name to look up via get_error().
+
+    Returns:
+        A short, human-readable error string, or "" if no error is stored.
+    """
+    exc = get_error(stage_name)
+    if exc is None:
+        return ""
+
+    body = getattr(exc, "body", None)
+    if isinstance(body, dict):
+        detail = body.get("detail")
+        if isinstance(detail, dict) and isinstance(detail.get("message"), str):
+            return detail["message"]
+        if isinstance(body.get("message"), str):
+            return body["message"]
+
+    return str(exc)
+
+
 def stage_elapsed(stage_name: str) -> float | None:
     """Return seconds elapsed since *stage_name* was launched, or None.
 

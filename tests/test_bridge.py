@@ -14,7 +14,14 @@ from pathlib import Path
 # ---------------------------------------------------------------------------
 # Module-level import — fails with ModuleNotFoundError until bridge.py exists
 # ---------------------------------------------------------------------------
-from avideo.ui.bridge import run_stage, stage_status, RunStatus, get_error, _reset_state  # noqa: E402
+from avideo.ui.bridge import (  # noqa: E402
+    run_stage,
+    stage_status,
+    RunStatus,
+    get_error,
+    format_stage_error,
+    _reset_state,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -167,3 +174,55 @@ def test_run_stage_stores_error_on_failure(tmp_workdir: Path, tmp_path: Path) ->
     assert get_error("fake_err") is not None, (
         "get_error must return the stored exception after stage failure"
     )
+
+
+def test_format_stage_error_returns_empty_string_when_no_error() -> None:
+    """format_stage_error returns "" when no error is stored for the stage."""
+    _reset_state()
+    assert format_stage_error("nonexistent_stage") == ""
+
+
+def test_format_stage_error_extracts_elevenlabs_style_body_message() -> None:
+    """format_stage_error surfaces body['detail']['message'] instead of the raw
+    exception repr (which otherwise dumps full HTTP headers/status_code/body —
+    observed live during v2.0.0 browser UAT with a real ElevenLabs 402 error).
+    """
+    _reset_state()
+
+    class FakeApiError(Exception):
+        def __init__(self) -> None:
+            super().__init__("status_code: 402, headers: {...a huge dict...}")
+            self.body = {
+                "detail": {
+                    "type": "payment_required",
+                    "message": "Free users cannot use library voices via the API.",
+                }
+            }
+
+    class FakeFailingStage:
+        stage_name = "fake_err_api"
+        checkpoint_name = "fake_err_api"
+
+        def run(self, workdir, config):
+            raise FakeApiError()
+
+    import tempfile
+
+    from avideo.utils.workdir import WorkdirManager
+
+    tmp = Path(tempfile.mkdtemp())
+    wm = WorkdirManager(tmp)
+    config = _minimal_config(tmp)
+
+    run_stage(FakeFailingStage(), wm, config)
+
+    deadline = time.monotonic() + 3.0
+    while time.monotonic() < deadline:
+        if stage_status("fake_err_api", wm) == RunStatus.ERROR:
+            break
+        time.sleep(0.1)
+
+    msg = format_stage_error("fake_err_api")
+    assert msg == "Free users cannot use library voices via the API."
+    assert "headers" not in msg
+    assert "status_code" not in msg

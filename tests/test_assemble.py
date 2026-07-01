@@ -389,6 +389,40 @@ def test_parse_loudnorm_json_uses_last_block():
     assert result["measured_I"] == pytest.approx(-18.50)
 
 
+def test_parse_loudnorm_json_exposes_output_i_distinct_from_input_i():
+    """Regression test (v2.0.0 browser UAT finding): parse_loudnorm_json must
+    expose "output_i" (the actual post-normalization loudness) as a value
+    distinct from "input_i" (the pre-normalization measurement).
+
+    AssembleStage._run_qa previously read "input_i" from the pass-2 (apply)
+    stderr block to compute QAReport.normalized_lufs — since parse_loudnorm_json
+    always reports input_i as the pre-normalization value (even for pass-2),
+    this silently reported the ORIGINAL loudness as if normalization had
+    succeeded. Observed live: every real assembly run produced
+    normalized_lufs == measured_lufs, giving false confidence.
+    """
+    from avideo.integrations.ffmpeg import parse_loudnorm_json  # noqa: PLC0415
+
+    stderr = (
+        '{\n'
+        '    "input_i" : "-29.48",\n'
+        '    "input_tp" : "-10.00",\n'
+        '    "input_lra" : "5.00",\n'
+        '    "input_thresh" : "-28.50",\n'
+        '    "output_i" : "-16.01",\n'
+        '    "output_tp" : "-1.50",\n'
+        '    "output_lra" : "4.50",\n'
+        '    "output_thresh" : "-26.00",\n'
+        '    "normalization_type" : "linear",\n'
+        '    "target_offset" : "-0.50"\n'
+        '}\n'
+    )
+    result = parse_loudnorm_json(stderr)
+    assert result["input_i"] == pytest.approx(-29.48)
+    assert result["output_i"] == pytest.approx(-16.01)
+    assert result["output_i"] != result["input_i"]
+
+
 # ---------------------------------------------------------------------------
 # Tests: loudnorm pass-2 args — QA-02 (Pitfall 2: faststart + linear=true)
 # ---------------------------------------------------------------------------
@@ -651,7 +685,7 @@ def test_assemble_end_to_end_writes_qa_report(tmp_path, loudnorm_pass1_stderr):
         call_count[0] += 1
         # call 0: main assembly encode → create fake output.mp4
         if count == 0:
-            # The first call produces output.mp4.tmp; we simulate it by writing the tmp file
+            # The first call produces output.tmp.mp4; we simulate it by writing the tmp file
             # Find the output path argument (last arg)
             out_arg = args[-1]
             Path(out_arg).write_bytes(b"fake mp4")
@@ -700,6 +734,95 @@ def test_assemble_end_to_end_writes_qa_report(tmp_path, loudnorm_pass1_stderr):
     assert isinstance(result.qa, QAReport)
     assert result.qa.measured_lufs is not None
     assert result.qa.normalized_lufs is not None
+
+
+def test_ffmpeg_output_paths_end_in_mp4_not_tmp(tmp_path, loudnorm_pass1_stderr):
+    """Regression test (v2.0.0 browser UAT finding): every ffmpeg output path
+    AssembleStage passes to run_ffmpeg must have ".mp4" as its FINAL extension.
+
+    ffmpeg infers the container/muxer from the output filename's extension.
+    A path like "output.mp4.tmp" has ".tmp" as the final extension, which is
+    not a recognized muxer — real ffmpeg fails with "Unable to choose an
+    output format for '...output.mp4.tmp'" (observed live: assembly crashed
+    on every real run despite all tests passing, because tests mock
+    run_ffmpeg and never exercised ffmpeg's actual extension-based format
+    detection). Correct convention: put ".tmp" in the middle, e.g.
+    "output.tmp.mp4", so the final extension stays ".mp4".
+    """
+    import types  # noqa: PLC0415
+
+    from avideo.stages.assemble import AssembleStage  # noqa: PLC0415
+    from avideo.models.slides import SlidesOutput  # noqa: PLC0415
+    from avideo.models.timings import UnifiedTimings, SlideTimings, WordTiming  # noqa: PLC0415
+    from avideo.utils.workdir import WorkdirManager  # noqa: PLC0415
+    from avideo.models.config import RunConfig  # noqa: PLC0415
+
+    workdir = WorkdirManager(tmp_path / "workdir")
+
+    slide_path = workdir.root / "slides" / "slide_00.png"
+    slide_path.write_bytes(b"\x89PNG\r\n\x1a\n")
+    audio_path = workdir.root / "audio" / "audio_00.mp3"
+    audio_path.write_bytes(b"\xff\xe3")
+
+    workdir.write_checkpoint("slides", SlidesOutput(png_paths=[str(slide_path)], mode="auto"))
+    workdir.write_checkpoint(
+        "voice",
+        UnifiedTimings(
+            source="elevenlabs",
+            slides=[
+                SlideTimings(
+                    slide_index=0,
+                    audio_path=str(audio_path),
+                    duration=10.5,
+                    words=[WordTiming(text="test", start=0.0, end=0.5)],
+                )
+            ],
+        ),
+    )
+
+    bullets = tmp_path / "bullets.yaml"
+    bullets.write_text("title: T\nbullets:\n  - B\n", encoding="utf-8")
+    config = RunConfig(bullets=bullets, duration=10, workdir=workdir.root)
+
+    captured_output_paths: list[str] = []
+
+    def fake_run_ffmpeg(args):
+        out_arg = str(args[-1])
+        captured_output_paths.append(out_arg)
+        if out_arg != "-":
+            Path(out_arg).write_bytes(b"fake mp4")
+        if len(captured_output_paths) == 2:  # loudnorm pass-1 (measure) — no file write needed
+            return types.SimpleNamespace(returncode=0, stdout="", stderr=loudnorm_pass1_stderr)
+        return types.SimpleNamespace(
+            returncode=0,
+            stdout="",
+            stderr=(
+                '{"input_i":"-16.09","input_tp":"-1.50","input_lra":"0.50",'
+                '"input_thresh":"-26.09","output_i":"-16.01","output_tp":"-1.50",'
+                '"output_lra":"0.50","output_thresh":"-26.01",'
+                '"normalization_type":"linear","target_offset":"0.09"}'
+            ),
+        )
+
+    with patch("avideo.integrations.ffmpeg.subprocess.run") as mock_subproc, \
+         patch("avideo.stages.assemble.run_ffmpeg", side_effect=fake_run_ffmpeg), \
+         patch("avideo.stages.assemble.probe_duration", return_value=10.5):
+        mock_subproc.return_value = types.SimpleNamespace(
+            returncode=0,
+            stdout=json.dumps({"format": {"duration": "10.5"}}),
+            stderr="",
+        )
+        AssembleStage().run(workdir, config)
+
+    assert captured_output_paths, "run_ffmpeg must have been called at least once"
+    # Loudnorm pass-1 (measure) writes to "-" (null muxer, stdout) — not a real file.
+    real_output_paths = [p for p in captured_output_paths if p != "-"]
+    assert real_output_paths, "at least one real output file path must be captured"
+    for path in real_output_paths:
+        assert path.endswith(".mp4"), (
+            f"ffmpeg output path {path!r} must end in '.mp4' — ffmpeg cannot infer "
+            "the container format from a trailing '.tmp' extension"
+        )
 
 
 def test_pipeline_stages_has_assemble_stage():

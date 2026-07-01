@@ -16,8 +16,11 @@ Idempotence (D-10):
     normalized output.mp4 and report are already present.
 
 Atomic write (D-10):
-    ffmpeg assembly writes to output.mp4.tmp; os.replace renames to output.mp4.
-    loudnorm pass-2 writes to output.mp4.norm.tmp; os.replace renames to output.mp4.
+    ffmpeg assembly writes to output.tmp.mp4; os.replace renames to output.mp4.
+    loudnorm pass-2 writes to output.norm.tmp.mp4; os.replace renames to output.mp4.
+    (".mp4" must be the final extension — ffmpeg infers the container format from
+    the output filename's extension, and a trailing ".tmp" is not a recognized
+    muxer, so it fails with "Unable to choose an output format".)
     qa_report.json written to qa_report.json.tmp; os.replace renames to qa_report.json.
     No partial files ever land at final paths.
 
@@ -36,8 +39,8 @@ QA sub-step (QA-01/02, per 05-RESEARCH Open Question 1):
     7. QAReport attached to AssemblyOutput before return.
 
 Security (T-05-02, T-05-06, T-05-07, T-05-08):
-    All output paths are workdir.root / fixed names only (output.mp4, output.mp4.tmp,
-    output.mp4.norm.tmp, qa_report.json, qa_report.json.tmp, subs/output.srt).
+    All output paths are workdir.root / fixed names only (output.mp4, output.tmp.mp4,
+    output.norm.tmp.mp4, qa_report.json, qa_report.json.tmp, subs/output.srt).
     No user-controlled path components.
     Loudnorm args are a Python list[str], shell=False implicit (T-05-06).
     parse_loudnorm_json isolates the last {...} block (T-05-07).
@@ -106,7 +109,7 @@ class AssembleStage(CheckpointMixin):
         4. Measure real audio durations via ffprobe (ASMB-01 / D-02).
         5. Optionally resolve subtitle path for burn-in (D-05).
         6. Build ffmpeg arg list (build_assemble_args).
-        7. Run ffmpeg (writes to output.mp4.tmp).
+        7. Run ffmpeg (writes to output.tmp.mp4).
         8. Atomic rename tmp → output.mp4 (D-10).
         9. QA sub-step (QA-01/02): two-pass loudnorm + duration deviation + report.
            a. If output.mp4 AND qa_report.json already exist, reload and attach.
@@ -193,7 +196,7 @@ class AssembleStage(CheckpointMixin):
             subs_path = str(workdir.root / "subs" / "output.srt")
 
         # --- Step 6: Build ffmpeg args ---
-        tmp_mp4 = workdir.root / "output.mp4.tmp"
+        tmp_mp4 = workdir.root / "output.tmp.mp4"  # .mp4 ext must be last — see module docstring
         args = build_assemble_args(
             png_paths,
             audio_paths,
@@ -248,7 +251,7 @@ class AssembleStage(CheckpointMixin):
             # -ar 48000 ensures consistent sample rate with the two-pass path (WR-02).
             # _run_qa's idempotence check (qa_json.exists()) short-circuits the two-pass
             # path so loudnorm runs exactly ONCE total when music is present.
-            norm_tmp = workdir.root / "output.mp4.norm.tmp"
+            norm_tmp = workdir.root / "output.norm.tmp.mp4"  # .mp4 ext must be last — see module docstring
             single_loudnorm_args: list[str] = [
                 "ffmpeg", "-hide_banner", "-y",
                 "-i", str(output_mp4),
@@ -269,7 +272,10 @@ class AssembleStage(CheckpointMixin):
             try:
                 sp_measured = parse_loudnorm_json(single_proc.stderr)
                 measured_lufs_music = float(sp_measured.get("input_i", target_lufs))
-                normalized_lufs_music = target_lufs  # single-pass output ≈ target
+                # output_i is the actual measured post-normalization loudness —
+                # same fix as the two-pass path below (was hardcoded to target_lufs,
+                # assuming success rather than measuring the real result).
+                normalized_lufs_music = float(sp_measured.get("output_i", target_lufs))
             except (ValueError, KeyError):
                 measured_lufs_music = target_lufs
                 normalized_lufs_music = target_lufs
@@ -334,7 +340,7 @@ class AssembleStage(CheckpointMixin):
             return QAReport.model_validate_json(qa_json.read_text(encoding="utf-8"))
 
         target_lufs = config.target_lufs
-        norm_tmp = workdir.root / "output.mp4.norm.tmp"
+        norm_tmp = workdir.root / "output.norm.tmp.mp4"  # .mp4 ext must be last — see module docstring
 
         # --- Pass 1: measure loudness ---
         pass1_args = loudnorm_pass1_args(str(output_mp4), target_lufs=target_lufs)
@@ -358,16 +364,17 @@ class AssembleStage(CheckpointMixin):
         # Atomic replace: normalized audio overwrites the assembled output.mp4
         os.replace(str(norm_tmp), str(output_mp4))
 
-        # Determine normalized_lufs from pass-2 stderr (output_i ≈ target)
+        # Determine normalized_lufs from pass-2 stderr's output_i — the ACTUAL
+        # resulting loudness after normalization, not input_i (which is always
+        # the pre-normalization value, even in the pass-2/apply JSON block).
+        # Regression note: this previously read "input_i" here, which silently
+        # reported the pre-normalization loudness as if it were the result —
+        # observed live during v2.0.0 browser UAT (normalized_lufs == measured_lufs
+        # on every real run, giving false confidence that normalization worked).
         normalized_lufs: float = target_lufs  # fallback = target
         try:
             pass2_measured = parse_loudnorm_json(pass2_proc.stderr)
-            # pass-2 output_i reported in the JSON block (it's the applied_i value)
-            # input_i in the pass-2 block is what was measured before apply → same as pass-1
-            # Use target_lufs as normalized_lufs when pass-2 JSON has output_i ≈ target
-            if "input_i" in pass2_measured:
-                # pass2 output_i is reported as input_i in the re-emitted JSON
-                normalized_lufs = pass2_measured.get("input_i", target_lufs)
+            normalized_lufs = pass2_measured.get("output_i", target_lufs)
         except (ValueError, KeyError):
             # If pass-2 stderr doesn't have parseable block, use target as estimate
             normalized_lufs = target_lufs
