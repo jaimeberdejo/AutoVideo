@@ -1,7 +1,7 @@
 ---
 phase: 10-contenido-page
 verified: 2026-05-29T15:19:02Z
-status: human_needed
+status: passed
 score: 7/7
 overrides_applied: 0
 re_verification: false
@@ -24,7 +24,7 @@ human_verification:
 
 **Phase Goal:** El usuario puede introducir su tema y duración, y obtener bullets (propios o auto-generados por Claude) que aprueba antes de continuar
 **Verified:** 2026-05-29T15:19:02Z
-**Status:** human_needed
+**Status:** passed
 **Re-verification:** No — initial verification
 
 ## Goal Achievement
@@ -138,3 +138,9 @@ No automated gaps. All 7 must-haves are VERIFIED by static analysis, runtime Pyt
 
 _Verified: 2026-05-29T15:19:02Z_
 _Verifier: Claude (gsd-verifier)_
+
+## Post-hoc Real Browser Verification (2026-07-01)
+
+The `human_needed` items above were resolved via live browser UAT (Chrome MCP + Playwright, real Anthropic/OpenAI/ffmpeg calls, not mocked) in a dedicated verification session. See `.planning/phases/10-contenido-page/10-UAT.md` for the specific test results and `.planning/v2.0.0-BROWSER-VERIFICATION.md` for the full report, including 3 blocker bugs found and fixed during that session (none visible to the mocked unit-test suite). Status upgraded from `human_needed` to `passed` based on this evidence.
+
+---

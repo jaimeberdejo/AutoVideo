@@ -2,10 +2,11 @@
 gsd_state_version: 1.0
 milestone: v2.0.0
 milestone_name: Studio Guiado
+current_phase: 0.0
+current_phase_name: 8–13
 status: uat_in_progress
-stopped_at: v2.0.0 built + audited PASSED; UAT (browser) in progress; paused to plan SEED-002 with fresh context
-last_updated: "2026-05-31"
-last_activity: 2026-05-31 -- Completed quick task 260531-npu: SEED-002 variación dirigida (446 tests green)
+stopped_at: context exhaustion at 75% (2026-07-01)
+last_updated: "2026-07-01T19:16:56.610Z"
 progress:
   total_phases: 6
   completed_phases: 6
@@ -30,13 +31,16 @@ Plan: —
 Status: Paused for fresh-context planning of SEED-002
 
 ### Handoff (2026-05-31) — retomar tras /clear
+
 **Hecho esta sesión (todo en master, 398→419 tests verdes):**
+
 - v2.0.0 fases 8–13 completas; `/gsd-audit-milestone` → gaps_found (3 blockers integración) → fixed + verificado → **PASSED** (`.planning/v2.0.0-MILESTONE-AUDIT.md`).
 - Fixes de UAT en la UI: bullets None en data_editor; duración mm:ss (parse_duration); "+" del editor estable; **cuelgues de encadenado Fase 2 y Fase 3** (poll que avanza + tiempo transcurrido en vivo); nav multipágina redundante oculta (`showSidebarNavigation=false`).
 - Ejemplo de prueba: `examples/demo-presupuesto/` (bullets + music_bed.mp3 + README).
 - App corriendo: `uv run streamlit run src/avideo/ui/app.py` → http://localhost:8501 (parar: `lsof -ti :8501 | xargs kill`).
 
 **Próximos pasos (en orden):**
+
 1. **SEED-002 — variación dirigida** (Opción A elegida): implementar con contexto fresco. Ver `.planning/seeds/SEED-002-steerable-variation.md` (text_area en Fase 2/3 + feedback en prompts scriptwriter/storyboard/slides; ojo: "nº de slides" = storyboard, no solo scriptwriter; "más visual" enlaza con SEED-001/Pexels). Sugerido: `/gsd-quick` o fase corta.
 2. Terminar UAT de navegador de las 6 fases (las VERIFICATION.md están como human_needed por eso).
 3. Cerrar milestone: `/gsd-complete-milestone v2.0.0` → `/gsd-cleanup`.
@@ -138,6 +142,7 @@ intentionally NOT run autonomously. When ready: `/gsd-audit-milestone` → `/gsd
 
 **Deferred manual (browser/visual) verifications** — each phase verified `human_needed`;
 the automated layers all passed. Run `uv run avideo studio` and confirm:
+
 - Phase 9: 6-phase wizard, stepper, gated continue, back-nav confirm + invalidate, resume-from-workdir on refresh.
 - Phase 10: Fase 1 topic+duration, both bullet sources, data_editor, approve → bullets.yaml (then `avideo generate --bullets workdir/bullets.yaml --dry-run`).
 - Phase 11: Fase 2 guion auto-run + inline edit + variation (only scriptwriter); Fase 3 slides auto thumbnails+QC badges + upload+Claude-Vision QC.
@@ -171,7 +176,7 @@ Carried forward from v1.60.0 (non-blocking):
 
 ## Session Continuity
 
-Last session: 2026-05-29 (autonomous run, phases 8–13)
-Stopped at: v2.0.0 phases 8–13 ALL complete + verified (397 tests green, roadmap 100%). Milestone close-out (audit/complete/cleanup) intentionally deferred. User WIP in git stash@{0} — see Blockers/Concerns for restore + the deferred browser checks.
+Last session: 2026-07-01T19:16:56.602Z
+Stopped at: context exhaustion at 75% (2026-07-01)
 Resume file: None
 Next: restore/reconcile stash@{0}; run the deferred `avideo studio` browser checks; then `/gsd-audit-milestone` → `/gsd-complete-milestone v2.0.0` → `/gsd-cleanup`.

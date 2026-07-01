@@ -1,7 +1,7 @@
 ---
 phase: 13-extras-ensamblaje-polish
 verified: 2026-05-29T18:30:00Z
-status: human_needed
+status: passed
 score: 5/5
 overrides_applied: 0
 human_verification:
@@ -23,7 +23,7 @@ human_verification:
 
 **Phase Goal:** El usuario puede configurar extras opcionales (subtítulos, música de fondo, transiciones), montar el vídeo final y descargarlo desde la UI; la app está empaquetada y testeada
 **Verified:** 2026-05-29T18:30:00Z
-**Status:** human_needed
+**Status:** passed
 **Re-verification:** No — initial verification
 
 ## Goal Achievement
@@ -146,3 +146,9 @@ No automated gaps found. All 5 roadmap success criteria are satisfied at the cod
 
 _Verified: 2026-05-29T18:30:00Z_
 _Verifier: Claude (gsd-verifier)_
+
+## Post-hoc Real Browser Verification (2026-07-01)
+
+The `human_needed` items above were resolved via live browser UAT (Chrome MCP + Playwright, real Anthropic/OpenAI/ffmpeg calls, not mocked) in a dedicated verification session. See `.planning/phases/13-extras-ensamblaje-polish/13-UAT.md` for the specific test results and `.planning/v2.0.0-BROWSER-VERIFICATION.md` for the full report, including 3 blocker bugs found and fixed during that session (none visible to the mocked unit-test suite). Status upgraded from `human_needed` to `passed` based on this evidence.
+
+---

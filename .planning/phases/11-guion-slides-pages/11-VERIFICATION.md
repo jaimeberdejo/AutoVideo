@@ -1,7 +1,7 @@
 ---
 phase: 11-guion-slides-pages
 verified: 2026-05-29T17:45:00Z
-status: human_needed
+status: passed
 score: 5/5
 overrides_applied: 0
 human_verification:
@@ -35,7 +35,7 @@ human_verification:
 
 **Phase Goal:** El usuario puede revisar y aprobar el guion slide a slide (con edicion inline y variaciones) y las diapositivas generadas (con thumbnails, badges de QC y la opcion de subir las suyas)
 **Verified:** 2026-05-29T17:45:00Z
-**Status:** human_needed
+**Status:** passed
 **Re-verification:** No - initial verification
 
 ## Goal Achievement
@@ -181,3 +181,9 @@ The `human_needed` status reflects that 8 behaviors require live browser + Strea
 
 *Verified: 2026-05-29T17:45:00Z*
 *Verifier: Claude (gsd-verifier)*
+
+## Post-hoc Real Browser Verification (2026-07-01)
+
+The `human_needed` items above were resolved via live browser UAT (Chrome MCP + Playwright, real Anthropic/OpenAI/ffmpeg calls, not mocked) in a dedicated verification session. See `.planning/phases/11-guion-slides-pages/11-UAT.md` for the specific test results and `.planning/v2.0.0-BROWSER-VERIFICATION.md` for the full report, including 3 blocker bugs found and fixed during that session (none visible to the mocked unit-test suite). Status upgraded from `human_needed` to `passed` based on this evidence.
+
+---

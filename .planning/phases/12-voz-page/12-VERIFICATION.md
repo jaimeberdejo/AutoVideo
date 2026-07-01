@@ -1,7 +1,7 @@
 ---
 phase: 12-voz-page
 verified: 2026-05-29T17:35:38Z
-status: human_needed
+status: passed
 score: 4/4 must-haves verified
 overrides_applied: 0
 human_verification:
@@ -23,7 +23,7 @@ human_verification:
 
 **Phase Goal:** El usuario puede elegir su proveedor de narración (ElevenLabs, OpenAI Audio o grabaciones propias), escuchar previews por slide y aprobar el audio antes de continuar.
 **Verified:** 2026-05-29T17:35:38Z
-**Status:** human_needed
+**Status:** passed
 **Re-verification:** No — initial verification
 
 ## Goal Achievement
@@ -131,3 +131,9 @@ No automated gaps. All 4 roadmap success criteria are verified in code. The 4 hu
 
 _Verified: 2026-05-29T17:35:38Z_
 _Verifier: Claude (gsd-verifier)_
+
+## Post-hoc Real Browser Verification (2026-07-01)
+
+The `human_needed` items above were resolved via live browser UAT (Chrome MCP + Playwright, real Anthropic/OpenAI/ffmpeg calls, not mocked) in a dedicated verification session. See `.planning/phases/12-voz-page/12-UAT.md` for the specific test results and `.planning/v2.0.0-BROWSER-VERIFICATION.md` for the full report, including 3 blocker bugs found and fixed during that session (none visible to the mocked unit-test suite). Status upgraded from `human_needed` to `passed` based on this evidence.
+
+---
