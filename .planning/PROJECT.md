@@ -2,25 +2,21 @@
 
 ## What This Is
 
-Aplicación de línea de comandos en Python 3.11+ que automatiza de principio a fin la creación de un vídeo tipo "presentación narrada" (slides + voz en off). A partir de una lista de *bullet points*, una duración objetivo y, opcionalmente, un documento de contexto (`.pptx`/`.pdf`/`.md`), el sistema **diseña el storyboard, genera las diapositivas (HTML/CSS → imagen), escribe el guion calibrado a la duración, sintetiza o ingiere la voz, y monta el vídeo final** con subtítulos sincronizados. Está pensado para una persona técnica que quiere producir vídeos narrados de calidad sin edición manual, con control total del código.
+Aplicación Python 3.11+ que automatiza de principio a fin la creación de un vídeo tipo "presentación narrada" (slides + voz en off), disponible tanto como CLI headless (`avideo generate`) como wizard guiado local (`avideo studio`, Streamlit). A partir de una lista de *bullet points* (o un tema, que Claude convierte en bullets), una duración objetivo y, opcionalmente, un documento de contexto (`.pptx`/`.pdf`/`.md`), el sistema **diseña el storyboard, genera las diapositivas (HTML/CSS → imagen), escribe el guion calibrado a la duración, sintetiza o ingiere la voz, y monta el vídeo final** con subtítulos sincronizados. El wizard añade validación humana obligatoria entre cada una de las 6 fases, con edición inline y variaciones dirigidas por feedback de texto. Está pensado para una persona técnica que quiere producir vídeos narrados de calidad sin edición manual, con control total del código.
 
 ## Core Value
 
 A partir de unos bullets + una duración, obtener **un vídeo narrado coherente y de alta calidad (slides + voz + subtítulos sincronizados) sin intervención manual obligatoria** — y con puntos de control opcionales cuando se desee supervisar.
 
-## Current Milestone: v2.0.0 Studio Guiado
+## Current State
 
-**Goal:** Una UI Streamlit local que guía al usuario por las 6 fases de creación del vídeo con validación humana obligatoria entre fases (no avanza hasta confirmar), orquestando el pipeline existente como motor headless.
+**Shipped:** v1.60.0 MVP Pipeline (2026-05-29) + v2.0.0 Studio Guiado (2026-07-01).
 
-**Target features:**
-- **UI Streamlit guiada** (local, `localhost`, un usuario) como superficie principal — wizard de 6 fases con *human-check* en cada paso y previews en vivo (bullets, guion editable, thumbnails de slides, vídeo final).
-- **Fase 1 – Contenido:** intake de tema + duración; bullets aportados por el usuario o auto-generados por Claude desde el tema (aprobar/editar).
-- **Fase 2 – Guion + slides:** nº de slides derivado de la duración + guion por slide; revisión interactiva (editar / pedir variaciones / iterar hasta OK).
-- **Fase 3 – Diapositivas:** generadas por la app (revisión interactiva: editar / variaciones / iterar) o subidas por el usuario (control de calidad con el verificador Claude Vision que avisa de discrepancias con el esquema/guion).
-- **Fase 4 – Voz:** ElevenLabs, OpenAI Audio (nuevo), grabaciones propias; para audios subidos, botón de mejora automática (denoise + normalización).
-- **Fase 5 – Extras:** subtítulos, música de fondo (archivo del usuario, con ducking + fades), transiciones.
-- **Fase 6 – Ensamblaje:** montaje automático sincronizado (slide ↔ audio); preview y descarga del vídeo final en la UI.
-- **CLI `generate` conservado como motor headless** que la UI orquesta (el pipeline no se reescribe).
+Auto Video Narrado now ships both a headless CLI (`avideo generate`) and a guided local Streamlit UI (`avideo studio`) that walks the user through 6 wizard phases — Contenido, Guion, Diapositivas, Voz, Extras, Ensamblaje — each gated by explicit human approval, with live previews, inline editing, targeted variation regeneration, and full workdir-backed state reconstruction (survives browser refresh/close). Voice narration supports ElevenLabs, OpenAI Audio (with whisper-1 STT round-trip for timestamps), and user recordings with non-destructive audio enhancement. Background music mixing (ducking + fades + single-pass loudnorm) and Claude Vision slide QC round out the extras. 456 tests passing.
+
+## Next Milestone Goals
+
+Not yet planned — run `/gsd-new-milestone` to define scope. Candidates surfaced during v2.0.0 (see Active below and `.planning/milestones/v2.0.0-REQUIREMENTS.md` "Later Requirements"): SEED-001 (Pexels-sourced visual media in slides, currently on `feature/pexels-slides` branch, not merged), export to `.pptx`, 9:16 vertical output, custom theme/branding override, bundled royalty-free music library.
 
 ## Requirements
 
@@ -49,43 +45,46 @@ A partir de unos bullets + una duración, obtener **un vídeo narrado coherente 
 - ✓ Empaquetado `pyproject.toml`/`uv` + `Dockerfile` (Playwright pineado + FFmpeg + Poppler) — v1.60.0
 - ✓ Tests mínimos `pytest` (storyboard mockeado, timing, render slide); suite de 303 tests verde — v1.60.0
 - ✓ `README.md` con instalación y ejemplos — v1.60.0
+- ✓ UI Streamlit local (single-user, `localhost`) como superficie principal del flujo — v2.0.0
+- ✓ Wizard de 6 fases con validación humana obligatoria entre fases (no avanza hasta confirmar) — v2.0.0
+- ✓ Previews en vivo en la UI: bullets, guion por slide editable, thumbnails de slides, vídeo final reproducible/descargable — v2.0.0
+- ✓ Fase 1: auto-generación de bullets desde un tema (Claude) + aprobar/editar — v2.0.0
+- ✓ Fase 2: revisión interactiva del guion (editar texto / pedir variaciones / iterar hasta OK) — v2.0.0
+- ✓ Fase 3: slides generadas por la app con revisión interactiva (editar / variaciones / iterar) — v2.0.0
+- ✓ Fase 3: slides subidas por el usuario con control de calidad (verificador Claude Vision avisa de discrepancias) — v2.0.0
+- ✓ Fase 4: OpenAI Audio como tercer proveedor de voz (junto a ElevenLabs y record) — v2.0.0
+- ✓ Fase 4: para audios subidos por el usuario, botón de mejora automática de audio (denoise + normalización) — v2.0.0
+- ✓ Fase 5: música de fondo desde archivo del usuario (mezcla con ducking + fades en FFmpeg) — v2.0.0
+- ✓ Fase 6: ensamblaje automático sincronizado con preview/descarga en la UI — v2.0.0
+- ✓ CLI `generate` conservado como motor headless orquestado por la UI — v2.0.0
+- ✓ Variación dirigida por feedback de texto (SEED-002) en guion/storyboard/slides, no solo "regenerar a ciegas" — v2.0.0
 
 ### Active
 
-<!-- Alcance del milestone v2.0.0 Studio Guiado. Hipótesis hasta construir y validar. -->
+<!-- Alcance del próximo milestone. Aún sin definir formalmente — ejecutar /gsd-new-milestone. -->
 
-- [ ] UI Streamlit local (single-user, `localhost`) como superficie principal del flujo
-- [ ] Wizard de 6 fases con validación humana obligatoria entre fases (no avanza hasta confirmar)
-- [ ] Previews en vivo en la UI: bullets, guion por slide editable, thumbnails de slides, vídeo final reproducible/descargable
-- [ ] Fase 1: auto-generación de bullets desde un tema (Claude) + aprobar/editar
-- [ ] Fase 2: revisión interactiva del guion (editar texto / pedir variaciones / iterar hasta OK)
-- [ ] Fase 3: slides generadas por la app con revisión interactiva (editar / variaciones / iterar)
-- [ ] Fase 3: slides subidas por el usuario con control de calidad (verificador Claude Vision avisa de discrepancias)
-- [ ] Fase 4: OpenAI Audio como tercer proveedor de voz (junto a ElevenLabs y record)
-- [ ] Fase 4: para audios subidos por el usuario, botón de mejora automática de audio (denoise + normalización)
-- [ ] Fase 5: música de fondo desde archivo del usuario (mezcla con ducking + fades en FFmpeg)
-- [ ] Fase 6: ensamblaje automático sincronizado con preview/descarga en la UI
-- [ ] CLI `generate` conservado como motor headless orquestado por la UI
+(Ninguno — próximo milestone sin definir. Ver candidatos abajo.)
 
 ### Out of Scope
 
 <!-- Límites explícitos con razón, para no re-añadirlos. -->
 
 - **Generación de imágenes con IA** — decisión de diseño: solo iconos SVG y gráficos por código para control y consistencia visual
-- **Bancos de imágenes / stock** — misma razón: visuales 100% reproducibles y editables
+- **Bancos de imágenes / stock** — misma razón: visuales 100% reproducibles y editables (nota: SEED-001/Pexels explora medios de stock con licencia libre para slides, en rama separada `feature/pexels-slides`, sin fusionar — pendiente de decisión explícita si se retoma)
 - **Orquestadores visuales (n8n)** — se quiere un orquestador propio en Python, simple y controlable
 - **Frameworks pesados de agentes (LangGraph)** — innecesarios para un pipeline secuencial; añaden complejidad
 - **MoviePy** — se usa FFmpeg directo por rendimiento y control
-- **Marca/branding propio como requisito de entrada** — el tema lo propone la IA en `theme.yaml`; sobreescritura de marca es opcional/futura
+- **Marca/branding propio como requisito de entrada** — el tema lo propone la IA en `theme.yaml`; sobreescritura de marca es opcional/futura (candidato BRAND-01 para milestone futuro)
 - **Partir de un `.pptx` existente como flujo principal** — el workflow genera las slides; ingerir slides del usuario solo en modos `hybrid`/`manual`
-- **9:16 vertical como salida por defecto** — por defecto 16:9 1080p (9:16 puede añadirse como extensión futura)
+- **9:16 vertical como salida por defecto** — por defecto 16:9 1080p (candidato FMT-01 para milestone futuro)
+- **Exportación a `.pptx`** — diferido (candidato EXPORT-01)
+- **Modo multi-usuario / hosteado con autenticación** — hoy: local single-user (candidato UI-MULTI-01)
 
 ## Context
 
-- **Estado actual (post-v1.60.0):** Pipeline MVP completo y enviado — `avideo generate` recorre context → storyboard → timing → scriptwriter → slides → verify → voice → align → subs → assemble end-to-end. ~7.148 LOC Python, 303 tests verdes (todas las APIs/binarios externos mockeados), instalable con `uv` y reproducible en Docker. Auditoría de milestone: PASSED.
-- **Foco milestone v2.0.0 (Studio Guiado):** envolver el pipeline existente en una UI Streamlit local que guía las 6 fases con validación humana. El pipeline (CLI `generate`) se mantiene como motor headless; lo nuevo es la capa UI + estado/puente con los checkpoints de `workdir/`, theme→bullets, OpenAI Audio, y mezcla de música de fondo. (La idea previa de medios del usuario en `auto` — antiguas Phases 8–9 — se retiró del roadmap el 2026-05-29.)
-- **Decisión UI:** Streamlit (web local), no FastAPI+frontend ni TUI — prioriza rapidez de implementación y mantener todo en Python; la UI es una capa fina sobre etapas ya construidas.
-- **Deuda técnica conocida (no bloqueante):** imagen Docker verificada por inspección estática (recomendado `docker build` real antes del primer deploy); ingesta de `.pptx` de usuario es best-effort (rasterización offline no soportada → exportar PDF/PNG); WPM español de ElevenLabs (150) pendiente de calibración empírica; compatibilidad WhisperX/torch+pyannote en Docker por validar en la imagen opcional de `record`.
+- **Estado actual (post-v2.0.0):** Ambos milestones enviados y auditados PASSED. `avideo generate` (CLI headless) y `avideo studio` (wizard Streamlit de 6 fases) comparten el mismo motor de pipeline y checkpoints de `workdir/`. ~10.688 LOC Python, 456 tests verdes. Una sesión de UAT real en navegador (Chrome MCP + Playwright, APIs reales de Anthropic/OpenAI, FFmpeg real) recorrió las 6 fases end-to-end hasta un MP4 descargable y encontró/corrigió 3 bugs bloqueantes (contexto de tema perdido en retry del guionista, nombre de archivo temporal de FFmpeg rompiendo autodetección de formato, `run_config` no sobrevivía a un refresco del navegador) más varios bugs menores de UX. Ver `.planning/milestones/v2.0.0-MILESTONE-AUDIT.md` y `.planning/milestones/v2.0.0-BROWSER-VERIFICATION.md` (si se archivó) para detalle completo.
+- **Decisión UI (validada):** Streamlit (web local), no FastAPI+frontend ni TUI — la elección de rapidez de implementación se confirmó correcta; la UI quedó como capa fina sobre etapas ya construidas sin fricción.
+- **Deuda técnica conocida (no bloqueante, ver auditoría v2.0.0 para detalle completo):** `bridge.py` indexa hilos/errores solo por `stage_name` (no por `(workdir, stage_name)`) — dos sesiones concurrentes en el mismo stage interferirían; bajo riesgo para herramienta single-user localhost. `write_feedback`/`clear_feedback` (SEED-002) hacen read-modify-write sin lock sobre `feedback.json` — ventana de carrera estrecha, no observada en producción. Rutas de subida de audio propio + mejora, subida de slides + QC, y subida de música de fondo no se ejercitaron en la sesión de UAT en navegador (se priorizó el camino OpenAI TTS + auto-slides para llegar a un vídeo completo) — pendiente de una pasada de UAT dedicada si se detectan problemas en uso real. Imagen Docker verificada por inspección estática (recomendado `docker build` real antes del primer deploy); WPM español de ElevenLabs (150) pendiente de calibración empírica.
 - **Prioridades de diseño (en orden):** (1) máxima calidad de salida, (2) rapidez de implementación, (3) control total del código.
 - **Ejecución local** en Python, empaquetable en Docker.
 - **Slides pixel-perfect** vía HTML/CSS renderizado con Playwright; editable como CSS plano; export a `.pptx` con `python-pptx` como opción secundaria.
@@ -126,6 +125,14 @@ A partir de unos bullets + una duración, obtener **un vídeo narrado coherente 
 | Validación de timestamps ElevenLabs **estrictamente crecientes** + retry≤3 antes de checkpoint | Mitiga el bug de timestamps "congelados" | ✓ Good — v1.60.0 |
 | Timing por **largest-remainder** (suma exacta + clamps) | Reparto determinista que cuadra con la duración objetivo | ✓ Good — v1.60.0 |
 | FFmpeg por **subprocess con lista de args** (nunca `shell=True`) | Seguridad y transparencia del comando | ✓ Good — v1.60.0 |
+| Streamlit para la UI (no FastAPI+frontend/TUI) | Rapidez de implementación + todo en Python | ✓ Good — v2.0.0 (sin fricción en UAT real) |
+| Reconstrucción de estado desde `workdir/*.json`, no `session_state` | Sobrevive a refrescos/cierres del navegador; single source of truth | ✓ Good — v2.0.0 |
+| Etapas largas vía `PipelineBridge` (hilo daemon + polling), no bloqueo síncrono de Streamlit | UI responsiva durante render/TTS/montaje | ✓ Good — v2.0.0 |
+| OpenAI Audio TTS + round-trip STT (`whisper-1`) para timestamps | OpenAI TTS no da timestamps nativos; reusa formato `UnifiedTimings` existente | ✓ Good — v2.0.0 |
+| Mejora de audio no destructiva (`enhance_audio`, FFmpeg `afftdn`+`loudnorm`) con preview antes/después | Evita perder el original; alineación de subtítulos usa el audio sin procesar | ✓ Good — v2.0.0 |
+| Música de fondo: una sola pasada loudnorm sobre la mezcla final (no dos pasadas separadas) | Evita que el ducking de la música desplace el LUFS objetivo de la narración | ✓ Good — v2.0.0 |
+| SEED-002: feedback de texto dirigido en vez de "regenerar a ciegas" | El usuario puede guiar la variación (más visual, más corto, etc.) en vez de repetir intentos aleatorios | ✓ Good — v2.0.0 |
+| `invalidate_downstream` explícito al editar/regenerar en vez de invalidación implícita | Evita mostrar al usuario resultados desincronizados con el checkpoint editado | ✓ Good — v2.0.0 |
 
 ## Evolution
 
@@ -145,4 +152,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-29 — milestone v2.0.0 Studio Guiado started*
+*Last updated: 2026-07-01 — milestone v2.0.0 Studio Guiado completed*

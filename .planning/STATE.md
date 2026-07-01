@@ -3,16 +3,18 @@ gsd_state_version: 1.0
 milestone: v2.0.0
 milestone_name: Studio Guiado
 current_phase: 0.0
-current_phase_name: 8–13
-status: uat_in_progress
+status: Awaiting next milestone
 stopped_at: context exhaustion at 75% (2026-07-01)
-last_updated: "2026-07-01T19:16:56.610Z"
+last_updated: "2026-07-01T19:21:20.837Z"
+last_activity: 2026-07-01
+last_activity_desc: Milestone v2.0.0 completed and archived
 progress:
   total_phases: 6
   completed_phases: 6
   total_plans: 23
   completed_plans: 23
   percent: 100
+current_phase_name: 8–13
 ---
 
 # Project State
@@ -26,9 +28,10 @@ See: .planning/PROJECT.md (updated 2026-05-29)
 
 ## Current Position
 
-Phase: v2.0.0 todas las fases (8–13) completas + audit PASSED. En UAT manual.
+Phase: Milestone v2.0.0 complete
 Plan: —
-Status: Paused for fresh-context planning of SEED-002
+Status: Awaiting next milestone
+Last activity: 2026-07-01 — Milestone v2.0.0 completed and archived
 
 ### Handoff (2026-05-31) — retomar tras /clear
 
@@ -180,3 +183,7 @@ Last session: 2026-07-01T19:16:56.602Z
 Stopped at: context exhaustion at 75% (2026-07-01)
 Resume file: None
 Next: restore/reconcile stash@{0}; run the deferred `avideo studio` browser checks; then `/gsd-audit-milestone` → `/gsd-complete-milestone v2.0.0` → `/gsd-cleanup`.
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone
